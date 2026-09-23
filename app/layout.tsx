@@ -25,7 +25,7 @@ const spaceGrotesk = Space_Grotesk({
 export const metadata: Metadata = {
   metadataBase: new URL(getSiteUrl()),
   title: {
-    default: 'Amazon Homes — Detroit Wholesale Investment Properties',
+    default: 'Amazon Homes — Metro Detroit Investment Properties',
     template: '%s — Amazon Homes',
   },
   description:
