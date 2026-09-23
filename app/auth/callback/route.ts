@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
 
   const supabase = await createClient()
 
-  // PKCE / OAuth / password recovery code flow
+  // PKCE / OAuth code flow
   if (code) {
     const { error } = await supabase.auth.exchangeCodeForSession(code)
 
@@ -21,14 +21,19 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // Email confirmation / OTP verification flow
+  // Email verification / password recovery
   if (tokenHash && type) {
     const { error } = await supabase.auth.verifyOtp({
-      type,
       token_hash: tokenHash,
+      type,
     })
 
     if (!error) {
+      // Password recovery always goes to the password reset page.
+      if (type === "recovery") {
+        return NextResponse.redirect(`${origin}/reset-password`)
+      }
+
       return NextResponse.redirect(`${origin}${next}`)
     }
   }
