@@ -5,6 +5,7 @@ import {
   ArrowLeft,
   Building2,
   CalendarDays,
+  HelpCircle,
   LayoutGrid,
   LineChart,
   LogOut,
@@ -12,6 +13,7 @@ import {
   MessageSquareQuote,
   PanelLeft,
   Plus,
+  Route,
   ScrollText,
   UserCog,
   Users,
@@ -19,6 +21,14 @@ import {
 import { NotificationBell, type Notification } from '@/components/admin/notification-bell'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { formatCurrency } from '@/lib/format'
 import type { Inquiry, Offer, Property, ShowingRequest } from '@/lib/types'
 
@@ -187,6 +197,7 @@ export function AdminSidebar({
         <Link
           key={item.id}
           href={item.href}
+          data-tour={item.id}
           className={rowClass(isActive)}
           aria-current={isActive ? 'page' : undefined}
         >
@@ -200,6 +211,7 @@ export function AdminSidebar({
         <button
           key={item.id}
           type="button"
+          data-tour={item.id}
           onClick={() => onSelectSection(item.id)}
           className={rowClass(isActive)}
           aria-current={isActive ? 'page' : undefined}
@@ -213,6 +225,7 @@ export function AdminSidebar({
       <Link
         key={item.id}
         href={sectionHref(item.id)}
+        data-tour={item.id}
         className={rowClass(isActive)}
         aria-current={isActive ? 'page' : undefined}
       >
@@ -224,26 +237,28 @@ export function AdminSidebar({
   return (
     <aside className="sticky top-0 hidden h-dvh w-64 shrink-0 flex-col border-r border-border bg-card lg:flex">
       <div className="flex items-center gap-2.5 px-6 py-5">
-        <span className="flex size-9 items-center justify-center rounded-md bg-primary text-primary-foreground">
-          <Building2 className="size-5" />
-        </span>
+        <img
+            src="/logo1.png"
+            alt="Amazon Homes"
+            className="size-9 rounded-sm object-contain"
+          />
         <div className="leading-tight">
           <p className="font-display text-sm font-bold tracking-tight text-foreground">
-            Motor City
+            Amazon Homes
           </p>
           <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
-            Investor Exchange
+            Metro Detroit Invesment Deals
           </p>
         </div>
       </div>
 
       <div className="px-3 pb-2">
         {onQuickCreate ? (
-          <Button onClick={onQuickCreate} className="w-full justify-start">
+          <Button onClick={onQuickCreate} data-tour="quick-create" className="w-full justify-start">
             <Plus className="size-4" /> Quick create
           </Button>
         ) : (
-          <Button asChild className="w-full justify-start">
+          <Button asChild data-tour="quick-create" className="w-full justify-start">
             <Link href="/admin?section=properties&create=1">
               <Plus className="size-4" /> Quick create
             </Link>
@@ -310,7 +325,7 @@ export function AdminMobileNav({ active, onSelectSection }: AdminMobileNavProps)
         const isActive = active === item.id
         if (item.kind === 'route') {
           return (
-            <Link key={item.id} href={item.href} className={pillClass(isActive)}>
+            <Link key={item.id} href={item.href} data-tour={item.id} className={pillClass(isActive)}>
               {item.label}
             </Link>
           )
@@ -320,6 +335,7 @@ export function AdminMobileNav({ active, onSelectSection }: AdminMobileNavProps)
             <button
               key={item.id}
               type="button"
+              data-tour={item.id}
               onClick={() => onSelectSection(item.id)}
               className={pillClass(isActive)}
             >
@@ -328,7 +344,12 @@ export function AdminMobileNav({ active, onSelectSection }: AdminMobileNavProps)
           )
         }
         return (
-          <Link key={item.id} href={sectionHref(item.id)} className={pillClass(isActive)}>
+          <Link
+            key={item.id}
+            href={sectionHref(item.id)}
+            data-tour={item.id}
+            className={pillClass(isActive)}
+          >
             {item.label}
           </Link>
         )
@@ -343,11 +364,19 @@ interface AdminHeaderProps {
    *  these and the bell is hidden. The dashboard passes both to show it. */
   notifications?: Notification[]
   onSelectNotification?: (kind: Notification['kind']) => void
+  /** Provided by the dashboard so the Help menu can replay the admin tour.
+   *  Omitted elsewhere, where the Help menu is hidden. */
+  onStartTour?: () => void
 }
 
 /** Shared top header: sidebar affordance, title, theme toggle, notifications,
- *  and the View site link. Identical across every admin surface. */
-export function AdminHeader({ title, notifications, onSelectNotification }: AdminHeaderProps) {
+ *  Help menu, and the View site link. Identical across every admin surface. */
+export function AdminHeader({
+  title,
+  notifications,
+  onSelectNotification,
+  onStartTour,
+}: AdminHeaderProps) {
   return (
     <header className="sticky top-0 z-10 flex items-center gap-3 border-b border-border bg-card/80 px-4 py-3 backdrop-blur sm:px-8">
       <PanelLeft className="size-5 text-muted-foreground" aria-hidden />
@@ -357,6 +386,28 @@ export function AdminHeader({ title, notifications, onSelectNotification }: Admi
         <ThemeToggle />
         {notifications && onSelectNotification && (
           <NotificationBell notifications={notifications} onSelect={onSelectNotification} />
+        )}
+        {onStartTour && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="gap-1.5 text-muted-foreground hover:text-foreground"
+              >
+                <HelpCircle className="size-4" />
+                <span className="hidden sm:inline">Help</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>Help &amp; tutorials</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={() => onStartTour()}>
+                <Route className="size-4" />
+                Take admin tour
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         )}
         <Link
           href="/properties"

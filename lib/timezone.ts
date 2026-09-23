@@ -101,6 +101,24 @@ export function formatDeadline(iso: string | null | undefined): string {
   return `${formatted} ${BUSINESS_TZ_LABEL}`
 }
 
+/**
+ * Calendar-day key ("YYYY-MM-DD") for an absolute instant, expressed in the
+ * business timezone. Used to bucket time-series data (e.g. daily visit counts)
+ * on the same day boundaries the rest of the app and the analytics RPC use, so
+ * a visit at 11pm ET lands on the correct local day rather than rolling over in
+ * UTC.
+ */
+export function detroitDayKey(instant: Date = new Date()): string {
+  if (Number.isNaN(instant.getTime())) instant = new Date()
+  // en-CA formats as YYYY-MM-DD, which is exactly the key shape we want.
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: BUSINESS_TIMEZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(instant)
+}
+
 /** Date-only portion of the deadline in the business timezone ("Sep 28, 2026"). */
 export function formatDeadlineDate(iso: string | null | undefined): string {
   if (!iso) return ''

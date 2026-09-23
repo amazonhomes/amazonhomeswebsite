@@ -51,7 +51,7 @@ export default function LoginPage() {
     <PageShell>
       <div className="mx-auto flex max-w-md flex-col px-4 py-16">
         <h1 className="font-display text-3xl font-bold tracking-tight text-foreground">
-          Investor login
+          Login To Your Account
         </h1>
         <p className="mt-2 text-muted-foreground">
           Log in to view protected photos, financials, and manage your offers.
@@ -83,12 +83,7 @@ export default function LoginPage() {
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center justify-between">
               <Label htmlFor="password">Password</Label>
-              <Link
-                href="/forgot-password"
-                className="text-sm font-medium text-foreground underline underline-offset-4"
-              >
-                Forgot password?
-              </Link>
+             
             </div>
             <PasswordInput
               id="password"
@@ -99,6 +94,12 @@ export default function LoginPage() {
               }}
               required
             />
+             <Link
+                href="/forgot-password"
+                className="text-sm font-medium text-foreground underline underline-offset-4"
+              >
+                Forgot password?
+              </Link>
           </div>
           {error && <p className="text-sm text-destructive">{error}</p>}
           <Button type="submit" size="lg" disabled={submitting}>
@@ -113,9 +114,7 @@ export default function LoginPage() {
           </Button>
         </form>
 
-        <div className="mt-6">
-          <AltAuth mode="login" redirect={redirect} />
-        </div>
+       
 
         <p className="mt-6 text-sm text-muted-foreground">
           No account yet?{' '}
@@ -123,14 +122,6 @@ export default function LoginPage() {
             Register for access
           </Link>
         </p>
-
-        <div className="mt-8 rounded-md border border-border bg-secondary p-4 text-sm">
-          <p className="font-semibold text-foreground">Demo admin account</p>
-          <p className="mt-1 text-muted-foreground">admin@amazonhomes.com / admin123</p>
-          <p className="mt-2 text-muted-foreground">
-            Investors: register above to create your own account.
-          </p>
-        </div>
       </div>
     </PageShell>
   )

@@ -16,6 +16,7 @@ import {
 import { SiteSearch } from '@/components/site-search'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { useStore } from '@/lib/store'
+import { useMessageNotifications } from '@/lib/use-message-notifications'
 import { cn } from '@/lib/utils'
 
 const nav = [
@@ -29,6 +30,7 @@ export function SiteHeader() {
   const pathname = usePathname()
   const router = useRouter()
   const { currentUser, logout } = useStore()
+  const { unreadCount } = useMessageNotifications()
   const [open, setOpen] = useState(false)
 
   return (
@@ -36,7 +38,7 @@ export function SiteHeader() {
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4">
         <Link href="/" className="flex items-center gap-2.5" aria-label="Amazon Homes home">
           <img
-            src="/amazon-homes-logo.jpg"
+            src="/logo1.png"
             alt="Amazon Homes"
             className="size-9 rounded-sm object-contain"
           />
@@ -45,7 +47,7 @@ export function SiteHeader() {
               Amazon Homes
             </span>
             <span className="text-[11px] font-medium uppercase tracking-widest text-muted-foreground">
-              Detroit Investment Deals
+              Metro Detroit Investment Deals
             </span>
           </span>
         </Link>
@@ -66,14 +68,20 @@ export function SiteHeader() {
         </nav>
 
         <div className="hidden items-center gap-2 md:flex">
-          <SiteSearch triggerClassName="h-9" />
-          <ThemeToggle />
           {currentUser ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-2">
+                <Button variant="outline" size="sm" className="relative gap-2">
                   <User2 className="size-4" />
                   {currentUser.name.split(' ')[0]}
+                  {unreadCount > 0 && (
+                    <span
+                      className="absolute -right-1.5 -top-1.5 flex size-4 items-center justify-center rounded-full bg-primary text-[10px] font-semibold leading-none text-primary-foreground"
+                      aria-label={`${unreadCount} unread ${unreadCount === 1 ? 'message' : 'messages'}`}
+                    >
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  )}
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-52">
@@ -93,6 +101,11 @@ export function SiteHeader() {
                 <DropdownMenuItem onClick={() => router.push('/account')}>
                   <MessageSquare className="size-4" />
                   My Messages
+                  {unreadCount > 0 && (
+                    <span className="ml-auto flex min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold leading-none text-primary-foreground">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  )}
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => router.push('/saved')}>
                   <Bookmark className="size-4" />
@@ -165,7 +178,14 @@ export function SiteHeader() {
                     </Button>
                   )}
                   <Button variant="outline" asChild onClick={() => setOpen(false)}>
-                    <Link href="/account">My Messages</Link>
+                    <Link href="/account" className="relative">
+                      My Messages
+                      {unreadCount > 0 && (
+                        <span className="ml-2 flex min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[11px] font-semibold leading-none text-primary-foreground">
+                          {unreadCount > 9 ? '9+' : unreadCount}
+                        </span>
+                      )}
+                    </Link>
                   </Button>
                   <Button variant="outline" asChild onClick={() => setOpen(false)}>
                     <Link href="/saved">Saved Properties</Link>

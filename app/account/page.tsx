@@ -8,6 +8,7 @@ import { PageShell } from '@/components/page-shell'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { useStore } from '@/lib/store'
+import { useMessageNotifications } from '@/lib/use-message-notifications'
 import { cn } from '@/lib/utils'
 import type { Inquiry } from '@/lib/types'
 
@@ -25,6 +26,7 @@ function timeAgo(iso: string) {
 
 export default function AccountPage() {
   const { ready, currentUser, inquiries, properties, replyToInquiry } = useStore()
+  const { unreadIds, markRead } = useMessageNotifications()
   const router = useRouter()
 
   useEffect(() => {
@@ -52,6 +54,12 @@ export default function AccountPage() {
   useEffect(() => {
     if (!activeId && myInquiries.length) setActiveId(myInquiries[0].id)
   }, [activeId, myInquiries])
+
+  // Clear the notification for whichever thread is open (including new replies
+  // that arrive while it is already open).
+  useEffect(() => {
+    if (activeId && unreadIds.has(activeId)) markRead(activeId)
+  }, [activeId, unreadIds, markRead])
 
   const active = myInquiries.find((i) => i.id === activeId) ?? null
 

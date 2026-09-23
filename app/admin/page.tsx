@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Suspense, useEffect, useMemo, useState } from 'react'
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Building2,
   CalendarDays,
@@ -27,6 +27,7 @@ import {
   navLabel,
   type Section,
 } from '@/components/admin/admin-nav'
+import { AdminTour, type TourStep } from '@/components/admin/admin-tour'
 import { DataTable, type Column } from '@/components/admin/data-table'
 import { MessagesInbox } from '@/components/admin/messages-inbox'
 import type { Notification } from '@/components/admin/notification-bell'
@@ -134,6 +135,64 @@ function greeting(): string {
   return 'Good evening'
 }
 
+/** Ordered onboarding steps for admins/VAs. Each `target` maps to a `data-tour`
+ *  attribute rendered in the persistent sidebar / mobile nav, so the tour works
+ *  from any section without route changes; targetless steps render centered. */
+const TOUR_STEPS: TourStep[] = [
+  {
+    id: 'welcome',
+    title: 'Welcome to your admin workspace',
+    body: 'This quick tour points out where to manage listings, offers, showings, messages, and investor accounts. It takes less than a minute — you can skip or replay it anytime.',
+  },
+  {
+    id: 'quick-create',
+    title: 'Add a listing fast',
+    body: 'Quick create opens the property editor from anywhere. Set the address, price, status, and offer deadline, then publish it to the marketplace.',
+    target: 'quick-create',
+  },
+  {
+    id: 'properties',
+    title: 'Manage properties',
+    body: 'The Properties tab is your full catalog — edit details, update status, set offer deadlines, or retire listings that are no longer available.',
+    target: 'properties',
+  },
+  {
+    id: 'offers',
+    title: 'Review incoming offers',
+    body: 'Offers land here with the investor, amount, and property. Move each one through New → Reviewed → Accepted or Declined, or message the investor directly.',
+    target: 'offers',
+  },
+  {
+    id: 'showings',
+    title: 'Coordinate showings',
+    body: 'Showing requests show the requester and preferred time. Confirm or schedule walkthroughs and mark them completed as you go.',
+    target: 'showings',
+  },
+  {
+    id: 'messages',
+    title: 'Reply to investors',
+    body: 'The Messages inbox threads every inquiry and lead conversation. Replies are delivered to the investor and show up in their account.',
+    target: 'messages',
+  },
+  {
+    id: 'investors',
+    title: 'See who is active',
+    body: 'The Investors tab lists registered accounts so you can track engagement and follow up with the right people.',
+    target: 'investors',
+  },
+  {
+    id: 'audit',
+    title: 'Track every change',
+    body: 'The Audit log records inserts, updates, and deletes across the marketplace — useful for accountability when a team shares the dashboard.',
+    target: 'audit',
+  },
+  {
+    id: 'finish',
+    title: 'You are all set',
+    body: 'That is the whole workspace. Need a refresher later? Open Help in the top bar and choose “Take admin tour” to replay this anytime.',
+  },
+]
+
 function AdminDashboard() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -156,9 +215,15 @@ function AdminDashboard() {
     startConversation,
     addTestimonial,
     deleteTestimonial,
+    completeAdminTour,
   } = useStore()
 
   const { confirm, dialog: confirmDialog } = useConfirm()
+
+  const [tourOpen, setTourOpen] = useState(false)
+  // Ensures the tour auto-opens at most once per mount, so "Skip for now"
+  // (which intentionally does not persist) won't reopen it on re-render.
+  const tourAutoStarted = useRef(false)
 
   const confirmDeleteProperty = async (id: string) => {
     const property = properties.find((p) => p.id === id)
@@ -205,6 +270,17 @@ function AdminDashboard() {
       router.replace('/login?redirect=/admin')
     }
   }, [ready, currentUser, router])
+
+  // Auto-start the onboarding tour once for admins who have never completed or
+  // dismissed it. Guarded by a ref so it fires at most once per mount.
+  useEffect(() => {
+    if (!ready || !currentUser || currentUser.role !== 'admin') return
+    if (tourAutoStarted.current) return
+    if (!currentUser.adminTourCompletedAt) {
+      tourAutoStarted.current = true
+      setTourOpen(true)
+    }
+  }, [ready, currentUser])
 
   const propertyMap = useMemo(
     () => Object.fromEntries(properties.map((p) => [p.id, p])),
@@ -254,6 +330,18 @@ function AdminDashboard() {
     else setSection('showings')
   }
 
+  // Finish and permanent-dismiss both persist so the tour won't auto-open again;
+  // "Skip for now" just closes it for this session.
+  const finishTour = () => {
+    setTourOpen(false)
+    void completeAdminTour()
+  }
+  const skipTourForNow = () => setTourOpen(false)
+  const startTour = () => {
+    tourAutoStarted.current = true
+    setTourOpen(true)
+  }
+
   return (
     <div className="flex min-h-dvh bg-secondary">
       <AdminSidebar
@@ -274,6 +362,7 @@ function AdminDashboard() {
           title={navLabel(section)}
           notifications={notifications}
           onSelectNotification={openFromNotification}
+          onStartTour={startTour}
         />
 
         <AdminMobileNav active={section} onSelectSection={goTo} />
@@ -323,11 +412,9 @@ function AdminDashboard() {
                 />
               </div>
 
-              <div className="mt-6">
-                <ActivityChart
-                  base={Math.max(20, offers.length * 4 + showings.length * 3 + investors.length * 2)}
-                />
-              </div>
+        <div className="mt-6">
+          <ActivityChart />
+        </div>
 
               <div className="mt-6">
                 <PropertiesTable
@@ -744,6 +831,14 @@ function AdminDashboard() {
       )}
 
       {confirmDialog}
+
+      <AdminTour
+        open={tourOpen}
+        steps={TOUR_STEPS}
+        onFinish={finishTour}
+        onDismissPermanently={finishTour}
+        onSkipForNow={skipTourForNow}
+      />
     </div>
   )
 }

@@ -104,6 +104,11 @@ interface StoreContextValue {
   }) => Promise<string | null>
   addTestimonial: (input: Omit<Testimonial, 'id' | 'createdAt'>) => Promise<void>
   deleteTestimonial: (id: string) => Promise<void>
+  /** Persist that the signed-in admin finished (or permanently dismissed) the
+   *  onboarding tour. Optimistically updates `currentUser` and writes
+   *  `admin_tour_completed_at` to their own profile row (allowed by the
+   *  `profiles_update_own` RLS policy). No-op for non-admins. */
+  completeAdminTour: () => Promise<void>
 }
 
 const StoreContext = createContext<StoreContextValue | null>(null)
@@ -219,6 +224,7 @@ function mapProfile(r: any): User {
     company: r.company,
     role: r.role,
     createdAt: r.created_at,
+    adminTourCompletedAt: r.admin_tour_completed_at ?? null,
   }
 }
 
@@ -879,6 +885,21 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [supabase],
   )
 
+  const completeAdminTour = useCallback<StoreContextValue['completeAdminTour']>(async () => {
+    if (!currentUser || currentUser.role !== 'admin' || currentUser.adminTourCompletedAt) return
+    const nowIso = new Date().toISOString()
+    // Optimistic: mark done locally so auto-start won't retrigger this session.
+    setCurrentUser((prev) => (prev ? { ...prev, adminTourCompletedAt: nowIso } : prev))
+    const { error } = await supabase
+      .from('profiles')
+      .update({ admin_tour_completed_at: nowIso })
+      .eq('id', currentUser.id)
+    if (error) {
+      // Roll back so a later attempt can still persist completion.
+      setCurrentUser((prev) => (prev ? { ...prev, adminTourCompletedAt: null } : prev))
+    }
+  }, [supabase, currentUser])
+
   const value = useMemo<StoreContextValue>(
     () => ({
       ready,
@@ -913,6 +934,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       startConversation,
       addTestimonial,
       deleteTestimonial,
+      completeAdminTour,
     }),
     [
       ready,
@@ -944,6 +966,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       startConversation,
       addTestimonial,
       deleteTestimonial,
+      completeAdminTour,
     ],
   )
 

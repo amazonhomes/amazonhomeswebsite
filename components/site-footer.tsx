@@ -8,9 +8,13 @@ export function SiteFooter() {
       <div className="mx-auto grid max-w-6xl gap-8 px-4 py-12 sm:grid-cols-2 lg:grid-cols-4">
         <div className="flex flex-col gap-3">
           <div className="flex items-center gap-2.5">
-            <span className="flex size-9 items-center justify-center rounded-sm bg-accent text-accent-foreground">
-              <Building2 className="size-5" />
-            </span>
+           
+               <img
+            src="/whitelogo.png"
+            alt="Amazon Homes"
+            className="size-9 rounded-sm object-contain"
+          />
+           
             <span className="font-display text-base font-bold tracking-tight">
               Amazon Homes
             </span>
@@ -19,9 +23,6 @@ export function SiteFooter() {
             Off-market Detroit investment properties for serious cash buyers and
             long-term holders.
           </p>
-          <div className="mt-2">
-            <NewsletterSignup />
-          </div>
         </div>
 
         <div className="flex flex-col gap-2">

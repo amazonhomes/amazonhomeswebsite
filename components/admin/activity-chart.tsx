@@ -1,7 +1,9 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import useSWR from 'swr'
 import { Area, AreaChart, CartesianGrid, XAxis } from 'recharts'
+import { Loader2, TriangleAlert } from 'lucide-react'
 import {
   ChartContainer,
   ChartTooltip,
@@ -9,59 +11,72 @@ import {
   type ChartConfig,
 } from '@/components/ui/chart'
 
-type Range = '90d' | '30d' | '7d'
+type Range = 90 | 30 | 7
 
-const RANGES: { id: Range; label: string; days: number }[] = [
-  { id: '90d', label: 'Last 3 months', days: 90 },
-  { id: '30d', label: 'Last 30 days', days: 30 },
-  { id: '7d', label: 'Last 7 days', days: 7 },
+const RANGES: { id: Range; label: string }[] = [
+  { id: 90, label: 'Last 3 months' },
+  { id: 30, label: 'Last 30 days' },
+  { id: 7, label: 'Last 7 days' },
 ]
 
-const chartConfig = {
-  activity: {
-    label: 'Marketplace activity',
-    color: 'var(--chart-1)',
-  },
-} satisfies ChartConfig
+type MetricKey = 'visits' | 'propertyViews' | 'offers' | 'investors' | 'showings'
 
-function mulberry32(seed: number) {
-  return () => {
-    seed |= 0
-    seed = (seed + 0x6d2b79f5) | 0
-    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed)
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
-  }
+type SeriesPoint = {
+  day: string
+  offers: number
+  investors: number
+  showings: number
+  propertyViews: number
+  visits: number
 }
 
 /**
- * Builds a deterministic 90-day activity series so the chart is stable across
- * renders. The shape blends a gentle upward trend with weekly seasonality and
- * seeded noise to mimic real marketplace traffic.
+ * Each metric renders as its own stacked area. Colors map to the chart tokens
+ * defined in the design system so they stay theme-aware in light/dark.
  */
-function buildSeries(base: number) {
-  const rand = mulberry32(1337)
-  const today = new Date()
-  const points: { date: string; activity: number }[] = []
-  for (let i = 89; i >= 0; i--) {
-    const d = new Date(today)
-    d.setDate(today.getDate() - i)
-    const trend = (90 - i) / 90 // 0 -> 1 upward drift
-    const weekly = Math.sin((i / 7) * Math.PI * 2) * 0.35
-    const spike = rand() > 0.82 ? rand() * 1.4 : 0
-    const noise = rand() * 0.6
-    const value = base * (0.6 + trend * 0.7 + weekly + spike + noise)
-    points.push({ date: d.toISOString().slice(0, 10), activity: Math.max(4, Math.round(value)) })
+const METRICS: { key: MetricKey; label: string; color: string }[] = [
+  { key: 'visits', label: 'Site visits', color: 'var(--chart-1)' },
+  { key: 'propertyViews', label: 'Property views', color: 'var(--chart-5)' },
+  { key: 'offers', label: 'Offers', color: 'var(--chart-2)' },
+  { key: 'investors', label: 'New investors', color: 'var(--chart-3)' },
+  { key: 'showings', label: 'Showings', color: 'var(--chart-4)' },
+]
+
+const chartConfig = METRICS.reduce((acc, m) => {
+  acc[m.key] = { label: m.label, color: m.color }
+  return acc
+}, {} as ChartConfig)
+
+const fetcher = async (url: string) => {
+  const res = await fetch(url)
+  if (!res.ok) {
+    const body = (await res.json().catch(() => null)) as { error?: string } | null
+    throw new Error(body?.error || 'Failed to load analytics.')
   }
-  return points
+  return res.json() as Promise<{ range: number; series: SeriesPoint[] }>
 }
 
-export function ActivityChart({ base = 40 }: { base?: number }) {
-  const [range, setRange] = useState<Range>('90d')
-  const all = useMemo(() => buildSeries(base), [base])
-  const days = RANGES.find((r) => r.id === range)!.days
-  const data = all.slice(all.length - days)
-  const total = data.reduce((sum, p) => sum + p.activity, 0)
+export function ActivityChart() {
+  const [range, setRange] = useState<Range>(90)
+  const { data, error, isLoading } = useSWR(`/api/admin/analytics?range=${range}`, fetcher, {
+    revalidateOnFocus: false,
+    keepPreviousData: true,
+  })
+
+  const series = data?.series ?? []
+
+  const totals = useMemo(() => {
+    return METRICS.reduce(
+      (acc, m) => {
+        acc[m.key] = series.reduce((sum, p) => sum + (p[m.key] || 0), 0)
+        return acc
+      },
+      {} as Record<MetricKey, number>,
+    )
+  }, [series])
+
+  const grandTotal = Object.values(totals).reduce((a, b) => a + b, 0)
+  const activeLabel = RANGES.find((r) => r.id === range)!.label.toLowerCase()
 
   return (
     <section className="rounded-xl border border-border bg-card">
@@ -69,7 +84,7 @@ export function ActivityChart({ base = 40 }: { base?: number }) {
         <div>
           <h2 className="font-display text-lg font-bold text-foreground">Marketplace activity</h2>
           <p className="text-sm text-muted-foreground">
-            {total.toLocaleString()} interactions in the {RANGES.find((r) => r.id === range)!.label.toLowerCase()}
+            {grandTotal.toLocaleString()} interactions in the {activeLabel}
           </p>
         </div>
         <div className="flex w-fit items-center gap-1 rounded-lg border border-border bg-secondary p-1">
@@ -90,50 +105,89 @@ export function ActivityChart({ base = 40 }: { base?: number }) {
           ))}
         </div>
       </div>
+
+      {/* Per-metric legend with totals for the active window. */}
+      <div className="flex flex-wrap gap-x-6 gap-y-2 px-6 pt-4">
+        {METRICS.map((m) => (
+          <div key={m.key} className="flex items-center gap-2">
+            <span
+              className="h-2.5 w-2.5 rounded-full"
+              style={{ backgroundColor: m.color }}
+              aria-hidden="true"
+            />
+            <span className="text-sm text-muted-foreground">{m.label}</span>
+            <span className="text-sm font-semibold text-foreground tabular-nums">
+              {(totals[m.key] ?? 0).toLocaleString()}
+            </span>
+          </div>
+        ))}
+      </div>
+
       <div className="p-4 sm:p-6">
-        <ChartContainer config={chartConfig} className="aspect-auto h-[280px] w-full">
-          <AreaChart data={data} margin={{ left: 4, right: 4, top: 8 }}>
-            <defs>
-              <linearGradient id="fillActivity" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="var(--color-activity)" stopOpacity={0.7} />
-                <stop offset="95%" stopColor="var(--color-activity)" stopOpacity={0.05} />
-              </linearGradient>
-            </defs>
-            <CartesianGrid vertical={false} strokeDasharray="3 3" />
-            <XAxis
-              dataKey="date"
-              tickLine={false}
-              axisLine={false}
-              tickMargin={8}
-              minTickGap={32}
-              tickFormatter={(value: string) =>
-                new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-              }
-            />
-            <ChartTooltip
-              cursor={false}
-              content={
-                <ChartTooltipContent
-                  labelFormatter={(value) =>
-                    new Date(value).toLocaleDateString('en-US', {
-                      month: 'short',
-                      day: 'numeric',
-                      year: 'numeric',
-                    })
-                  }
-                  indicator="dot"
+        {error ? (
+          <div className="flex h-[280px] flex-col items-center justify-center gap-2 text-center">
+            <TriangleAlert className="h-6 w-6 text-muted-foreground" aria-hidden="true" />
+            <p className="text-sm text-muted-foreground">{(error as Error).message}</p>
+          </div>
+        ) : isLoading && series.length === 0 ? (
+          <div className="flex h-[280px] items-center justify-center">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" aria-hidden="true" />
+            <span className="sr-only">Loading analytics</span>
+          </div>
+        ) : (
+          <ChartContainer config={chartConfig} className="aspect-auto h-[280px] w-full">
+            <AreaChart data={series} margin={{ left: 4, right: 4, top: 8 }}>
+              <defs>
+                {METRICS.map((m) => (
+                  <linearGradient key={m.key} id={`fill-${m.key}`} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={m.color} stopOpacity={0.7} />
+                    <stop offset="95%" stopColor={m.color} stopOpacity={0.05} />
+                  </linearGradient>
+                ))}
+              </defs>
+              <CartesianGrid vertical={false} strokeDasharray="3 3" />
+              <XAxis
+                dataKey="day"
+                tickLine={false}
+                axisLine={false}
+                tickMargin={8}
+                minTickGap={32}
+                tickFormatter={(value: string) =>
+                  new Date(`${value}T00:00:00`).toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                  })
+                }
+              />
+              <ChartTooltip
+                cursor={false}
+                content={
+                  <ChartTooltipContent
+                    labelFormatter={(value) =>
+                      new Date(`${value}T00:00:00`).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                      })
+                    }
+                    indicator="dot"
+                  />
+                }
+              />
+              {METRICS.map((m) => (
+                <Area
+                  key={m.key}
+                  dataKey={m.key}
+                  type="natural"
+                  stackId="activity"
+                  fill={`url(#fill-${m.key})`}
+                  stroke={m.color}
+                  strokeWidth={2}
                 />
-              }
-            />
-            <Area
-              dataKey="activity"
-              type="natural"
-              fill="url(#fillActivity)"
-              stroke="var(--color-activity)"
-              strokeWidth={2}
-            />
-          </AreaChart>
-        </ChartContainer>
+              ))}
+            </AreaChart>
+          </ChartContainer>
+        )}
       </div>
     </section>
   )

@@ -4,6 +4,7 @@ import { Inter, Space_Grotesk } from 'next/font/google'
 import { Suspense } from 'react'
 import { StoreProvider } from '@/lib/store'
 import { InactivityTimeout } from '@/components/auth/inactivity-timeout'
+import { VisitTracker } from '@/components/visit-tracker'
 import { ThemeProvider } from '@/components/theme-provider'
 import { Toaster } from '@/components/ui/sonner'
 import { getSiteUrl } from '@/lib/site'
@@ -88,6 +89,7 @@ export default function RootLayout({
             <StoreProvider>
               {children}
               <InactivityTimeout />
+              <VisitTracker />
             </StoreProvider>
           </Suspense>
           <Toaster position="top-center" />

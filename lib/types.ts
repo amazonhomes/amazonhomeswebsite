@@ -54,6 +54,10 @@ export interface User {
   role: UserRole
   password?: string
   createdAt: string
+  /** When the admin finished (or permanently dismissed) the onboarding tour.
+   *  Null/absent for admins who have never completed it — used to auto-start
+   *  the tour once. Ignored for investors. */
+  adminTourCompletedAt?: string | null
 }
 
 export interface Offer {
