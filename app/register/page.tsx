@@ -190,11 +190,6 @@ export default function RegisterPage() {
               {submitting ? 'Creating account…' : 'Create account & unlock'}
             </Button>
           </form>
-
-          <div className="mt-6">
-            <AltAuth mode="register" redirect={redirect} />
-          </div>
-
           <p className="mt-4 text-center text-sm text-muted-foreground">
             Already registered?{' '}
             <Link
