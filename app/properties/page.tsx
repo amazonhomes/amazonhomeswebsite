@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { SlidersHorizontal, X } from 'lucide-react'
+import { Search, SlidersHorizontal, X } from 'lucide-react'
 import { PageShell } from '@/components/page-shell'
 import { BadgedPropertyCard } from '@/components/badged-property-card'
 import { Button } from '@/components/ui/button'
@@ -28,6 +28,23 @@ const types: (PropertyType | 'all')[] = [
 ]
 
 const statuses: (PropertyStatus | 'all')[] = ['all', 'available', 'under-contract', 'sold']
+
+function typeLabel(value: string) {
+  return value === 'all' ? 'All Types' : value
+}
+
+function statusLabel(value: string) {
+  if (value === 'all') return 'All Statuses'
+  if (value === 'under-contract') return 'Under contract'
+  return value.charAt(0).toUpperCase() + value.slice(1)
+}
+
+const sortLabels: Record<string, string> = {
+  newest: 'Newest',
+  'price-asc': 'Price: Low to High',
+  'price-desc': 'Price: High to Low',
+  spread: 'Biggest spread',
+}
 
 export default function PropertiesPage() {
   const { properties } = useStore()
@@ -78,13 +95,14 @@ export default function PropertiesPage() {
     return list
   }, [properties, query, type, status, minPrice, maxPrice, sort])
 
-  const hasFilters =
-    query.trim() !== '' ||
-    type !== 'all' ||
-    status !== 'all' ||
-    minPrice !== '' ||
-    maxPrice !== '' ||
-    sort !== 'newest'
+  const activeFilterCount =
+    (query.trim() !== '' ? 1 : 0) +
+    (type !== 'all' ? 1 : 0) +
+    (status !== 'all' ? 1 : 0) +
+    (minPrice !== '' ? 1 : 0) +
+    (maxPrice !== '' ? 1 : 0)
+
+  const hasFilters = activeFilterCount > 0 || sort !== 'newest'
 
   function resetFilters() {
     setQuery('')
@@ -110,39 +128,63 @@ export default function PropertiesPage() {
       </section>
 
       <section className="mx-auto max-w-6xl px-4 py-8">
-        <div className="rounded-md border border-border bg-card p-4">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
-            <div className="flex flex-1 items-center gap-2">
-              <SlidersHorizontal className="size-4 shrink-0 text-muted-foreground" />
-              <Input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search address, neighborhood, or ZIP"
-                className="border-0 bg-transparent shadow-none focus-visible:ring-0"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:flex">
+        <div className="rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-5">
+          {/* Search */}
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              id="property-search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search address, neighborhood, or ZIP"
+              aria-label="Search address, neighborhood, or ZIP"
+              className="h-11 w-full pl-9 text-base"
+            />
+          </div>
+
+          {/* Dropdowns */}
+          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="flex flex-col gap-1.5">
+              <label
+                htmlFor="filter-type"
+                className="text-xs font-medium text-muted-foreground"
+              >
+                Property Type
+              </label>
               <Select value={type} onValueChange={(v) => setType(v ?? 'all')}>
-                <SelectTrigger className="lg:w-40">
-                  <SelectValue placeholder="Type" />
+                <SelectTrigger id="filter-type" className="h-11 w-full">
+                  <SelectValue placeholder="All Types">
+                    {(value: string) => typeLabel(value)}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {types.map((t) => (
                     <SelectItem key={t} value={t}>
-                      {t === 'all' ? 'All types' : t}
+                      {t === 'all' ? 'All Types' : t}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label
+                htmlFor="filter-status"
+                className="text-xs font-medium text-muted-foreground"
+              >
+                Status
+              </label>
               <Select value={status} onValueChange={(v) => setStatus(v ?? 'all')}>
-                <SelectTrigger className="lg:w-40">
-                  <SelectValue placeholder="Status" />
+                <SelectTrigger id="filter-status" className="h-11 w-full">
+                  <SelectValue placeholder="All Statuses">
+                    {(value: string) => statusLabel(value)}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {statuses.map((s) => (
                     <SelectItem key={s} value={s}>
                       {s === 'all'
-                        ? 'All statuses'
+                        ? 'All Statuses'
                         : s === 'under-contract'
                           ? 'Under contract'
                           : s.charAt(0).toUpperCase() + s.slice(1)}
@@ -150,59 +192,92 @@ export default function PropertiesPage() {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="flex flex-col gap-1.5 sm:col-span-2 lg:col-span-1">
+              <label
+                htmlFor="filter-sort"
+                className="text-xs font-medium text-muted-foreground"
+              >
+                Sort By
+              </label>
               <Select value={sort} onValueChange={(v) => setSort(v ?? 'newest')}>
-                <SelectTrigger className="col-span-2 sm:col-span-1 lg:w-44">
-                  <SelectValue placeholder="Sort" />
+                <SelectTrigger id="filter-sort" className="h-11 w-full">
+                  <SelectValue placeholder="Newest">
+                    {(value: string) => sortLabels[value] ?? 'Newest'}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="newest">Newest</SelectItem>
-                  <SelectItem value="price-asc">Price: low to high</SelectItem>
-                  <SelectItem value="price-desc">Price: high to low</SelectItem>
+                  <SelectItem value="price-asc">Price: Low to High</SelectItem>
+                  <SelectItem value="price-desc">Price: High to Low</SelectItem>
                   <SelectItem value="spread">Biggest spread</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
 
-          <div className="mt-4 flex flex-col gap-3 border-t border-border pt-4 sm:flex-row sm:items-center sm:gap-4">
-            <div className="flex items-center gap-2">
-              <span className="shrink-0 text-sm font-medium text-muted-foreground">
-                Price range
+          {/* Price range + clear */}
+          <div className="mt-4 flex flex-col gap-3 border-t border-border pt-4 sm:flex-row sm:items-end sm:justify-between">
+            <div className="flex flex-col gap-1.5">
+              <span className="text-xs font-medium text-muted-foreground">
+                Price Range
               </span>
-              <Input
-                value={minPrice}
-                onChange={(e) => setMinPrice(e.target.value)}
-                inputMode="numeric"
-                placeholder="Min"
-                aria-label="Minimum price"
-                className="w-24 sm:w-28"
-              />
-              <span className="text-muted-foreground">–</span>
-              <Input
-                value={maxPrice}
-                onChange={(e) => setMaxPrice(e.target.value)}
-                inputMode="numeric"
-                placeholder="Max"
-                aria-label="Maximum price"
-                className="w-24 sm:w-28"
-              />
+              <div className="flex items-center gap-2">
+                <div className="relative">
+                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                    $
+                  </span>
+                  <Input
+                    value={minPrice}
+                    onChange={(e) => setMinPrice(e.target.value)}
+                    inputMode="numeric"
+                    placeholder="Min Price"
+                    aria-label="Minimum price"
+                    className="h-11 w-full pl-7 sm:w-36"
+                  />
+                </div>
+                <span className="shrink-0 text-muted-foreground">–</span>
+                <div className="relative">
+                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                    $
+                  </span>
+                  <Input
+                    value={maxPrice}
+                    onChange={(e) => setMaxPrice(e.target.value)}
+                    inputMode="numeric"
+                    placeholder="Max Price"
+                    aria-label="Maximum price"
+                    className="h-11 w-full pl-7 sm:w-36"
+                  />
+                </div>
+              </div>
             </div>
+
             {hasFilters && (
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={resetFilters}
-                className="text-muted-foreground sm:ml-auto"
+                className="h-11 self-start text-muted-foreground sm:self-auto"
               >
-                <X className="size-4" /> Clear filters
+                <X className="size-4" /> Clear Filters
               </Button>
             )}
           </div>
         </div>
 
-        <p className="mt-6 text-sm text-muted-foreground">
-          {filtered.length} {filtered.length === 1 ? 'property' : 'properties'} found
-        </p>
+        <div className="mt-6 flex items-center gap-2">
+          <p className="text-sm text-muted-foreground">
+            {filtered.length} {filtered.length === 1 ? 'property' : 'properties'} found
+          </p>
+          {activeFilterCount > 0 && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
+              <SlidersHorizontal className="size-3" />
+              Filters · {activeFilterCount}
+            </span>
+          )}
+        </div>
 
         {filtered.length > 0 ? (
           <div className="mt-4 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
