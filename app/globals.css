@@ -239,6 +239,71 @@
   }
 }
 
+/* Shared international phone field (react-phone-number-input) restyled to match
+   the shadcn Input: same height, border, radius, focus ring and invalid state. */
+.v0-phone {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  min-width: 0;
+  min-height: 2.5rem; /* ~40px touch target; comfortably fits the h-8 siblings */
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  background: transparent;
+  padding-inline: 0.625rem;
+  transition:
+    color 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+.dark .v0-phone {
+  background: color-mix(in oklch, var(--input) 30%, transparent);
+}
+.v0-phone:focus-within {
+  border-color: var(--ring);
+  box-shadow: 0 0 0 3px color-mix(in oklch, var(--ring) 50%, transparent);
+}
+.v0-phone--invalid {
+  border-color: var(--destructive);
+}
+.v0-phone--invalid:focus-within {
+  border-color: var(--destructive);
+  box-shadow: 0 0 0 3px color-mix(in oklch, var(--destructive) 20%, transparent);
+}
+.v0-phone--disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+.v0-phone .PhoneInputInput {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  outline: none;
+  color: var(--foreground);
+  font-size: 0.875rem;
+}
+.v0-phone .PhoneInputInput::placeholder {
+  color: var(--muted-foreground);
+}
+.v0-phone .PhoneInputCountry {
+  margin: 0;
+}
+.v0-phone .PhoneInputCountryIcon {
+  box-shadow: none;
+  border-radius: 2px;
+  overflow: hidden;
+}
+.v0-phone .PhoneInputCountrySelect:focus-visible + .PhoneInputCountryIcon {
+  box-shadow: 0 0 0 2px var(--ring);
+  border-radius: 3px;
+}
+.v0-phone .PhoneInputCountrySelectArrow {
+  color: var(--muted-foreground);
+  opacity: 1;
+}
+
 /* Scroll-reveal: hidden until observed, then eased into place */
 .reveal {
   opacity: 0;

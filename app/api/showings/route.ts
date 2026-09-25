@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { checkRateLimit, clientIp } from '@/lib/rate-limit'
+import { validatePhoneField } from '@/lib/phone'
 
 /**
  * Showing-request submission endpoint. Distributed rate limiting + server-side
@@ -40,6 +41,11 @@ export async function POST(req: Request) {
   if (!propertyId || !name || !validEmail(email)) {
     return NextResponse.json({ ok: false, error: 'Please complete all required fields.' }, { status: 400 })
   }
+  // Phone is required on showing requests and must be a valid number.
+  const phoneCheck = validatePhoneField(body.phone, { required: true })
+  if (!phoneCheck.ok) {
+    return NextResponse.json({ ok: false, error: phoneCheck.error }, { status: 400 })
+  }
 
   const userId = typeof body.userId === 'string' ? body.userId : null
 
@@ -50,7 +56,7 @@ export async function POST(req: Request) {
     name,
     company: str(body.company, MAX.text) || null,
     email,
-    phone: str(body.phone, MAX.phone) || null,
+    phone: phoneCheck.value,
     preferred_time: str(body.preferredTime, MAX.text) || null,
     message: str(body.message, MAX.message) || null,
   })

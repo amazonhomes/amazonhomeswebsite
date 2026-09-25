@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { checkRateLimit, clientIp } from '@/lib/rate-limit'
+import { validatePhoneField } from '@/lib/phone'
 
 /**
  * Offer submission endpoint.
@@ -49,7 +50,10 @@ export async function POST(req: Request) {
   if (!Number.isFinite(amountRaw) || amountRaw <= 0 || amountRaw > MAX_AMOUNT) {
     return NextResponse.json({ ok: false, error: 'Enter a valid offer amount.' }, { status: 400 })
   }
-
+const phoneCheck = validatePhoneField(body.phone, { required: true })
+  if (!phoneCheck.ok) {
+    return NextResponse.json({ ok: false, error: phoneCheck.error }, { status: 400 })
+  }
   
 
   const supabase = await createClient()

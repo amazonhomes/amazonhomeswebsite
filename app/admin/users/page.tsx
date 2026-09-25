@@ -12,6 +12,7 @@ import {
 import { toast } from 'sonner'
 import { AdminHeader, AdminMobileNav, AdminSidebar } from '@/components/admin/admin-nav'
 import { PasswordInput } from '@/components/password-input'
+import { PhoneInput } from '@/components/phone-input'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -47,6 +48,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { formatDate } from '@/lib/format'
+import { coerceInitialPhone, validatePhoneField } from '@/lib/phone'
 import { useStore } from '@/lib/store'
 import type { User, UserRole } from '@/lib/types'
 
@@ -268,6 +270,7 @@ function CreateDialog({ onClose, onDone }: { onClose: () => void; onDone: () => 
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
+  const [phoneError, setPhoneError] = useState<string | null>(null)
   const [company, setCompany] = useState('')
   const [role, setRole] = useState<UserRole>('investor')
   const [password, setPassword] = useState('')
@@ -281,6 +284,11 @@ function CreateDialog({ onClose, onDone }: { onClose: () => void; onDone: () => 
       setError('Name and email are required.')
       return
     }
+    const phoneCheck = validatePhoneField(phone, { required: false })
+    if (!phoneCheck.ok) {
+      setPhoneError(phoneCheck.error)
+      return
+    }
     if (role === 'admin' && !password) {
       setError('Confirm your password to create an administrator.')
       return
@@ -289,7 +297,7 @@ function CreateDialog({ onClose, onDone }: { onClose: () => void; onDone: () => 
     const res = await callApi('/api/admin/users', 'POST', {
       name,
       email,
-      phone,
+      phone: phoneCheck.value,
       company,
       role,
       password: role === 'admin' ? password : undefined,
@@ -330,8 +338,22 @@ function CreateDialog({ onClose, onDone }: { onClose: () => void; onDone: () => 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label htmlFor="c-phone">Phone</Label>
-              <Input id="c-phone" value={phone} onChange={(e) => setPhone(e.target.value)} />
-            </div>
+              <PhoneInput
+                id="c-phone"
+                value={phone}
+                onChange={(v) => {
+                  setPhone(v)
+                  setPhoneError(null)
+                }}
+                invalid={!!phoneError}
+                describedBy={phoneError ? 'c-phone-error' : undefined}
+              />
+              {phoneError && (
+                <p id="c-phone-error" className="text-sm text-destructive">
+                  {phoneError}
+                </p>
+              )}
+              </div>
             <div className="space-y-2">
               <Label htmlFor="c-company">Company</Label>
               <Input
@@ -395,7 +417,8 @@ function EditDialog({
   onDone: () => void
 }) {
   const [name, setName] = useState(user.name)
-  const [phone, setPhone] = useState(user.phone ?? '')
+  const [phone, setPhone] = useState(coerceInitialPhone(user.phone))
+  const [phoneError, setPhoneError] = useState<string | null>(null)
   const [company, setCompany] = useState(user.company ?? '')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -407,8 +430,17 @@ function EditDialog({
       setError('Name is required.')
       return
     }
+    const phoneCheck = validatePhoneField(phone, { required: false })
+    if (!phoneCheck.ok) {
+      setPhoneError(phoneCheck.error)
+      return
+    }
     setBusy(true)
-    const res = await callApi(`/api/admin/users/${user.id}`, 'PATCH', { name, phone, company })
+    const res = await callApi(`/api/admin/users/${user.id}`, 'PATCH', {
+      name,
+      phone: phoneCheck.value,
+      company,
+    })
     setBusy(false)
     if (!res.ok) {
       setError(res.error ?? 'Unable to save changes.')
@@ -439,7 +471,21 @@ function EditDialog({
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label htmlFor="e-phone">Phone</Label>
-              <Input id="e-phone" value={phone} onChange={(e) => setPhone(e.target.value)} />
+              <PhoneInput
+                id="e-phone"
+                value={phone}
+                onChange={(v) => {
+                  setPhone(v)
+                  setPhoneError(null)
+                }}
+                invalid={!!phoneError}
+                describedBy={phoneError ? 'e-phone-error' : undefined}
+              />
+              {phoneError && (
+                <p id="e-phone-error" className="text-sm text-destructive">
+                  {phoneError}
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="e-company">Company</Label>

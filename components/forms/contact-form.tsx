@@ -2,10 +2,12 @@
 
 import { useState } from 'react'
 import { toast } from 'sonner'
+import { PhoneInput } from '@/components/phone-input'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { coerceInitialPhone, validatePhoneField } from '@/lib/phone'
 import { useStore } from '@/lib/store'
 
 export function ContactForm({ propertyId = null }: { propertyId?: string | null }) {
@@ -13,7 +15,8 @@ export function ContactForm({ propertyId = null }: { propertyId?: string | null 
   const [name, setName] = useState(currentUser?.name ?? '')
   const [company, setCompany] = useState(currentUser?.company ?? '')
   const [email, setEmail] = useState(currentUser?.email ?? '')
-  const [phone, setPhone] = useState(currentUser?.phone ?? '')
+  const [phone, setPhone] = useState(coerceInitialPhone(currentUser?.phone))
+  const [phoneError, setPhoneError] = useState<string | null>(null)
   const [message, setMessage] = useState('')
 
   const [submitting, setSubmitting] = useState(false)
@@ -21,8 +24,20 @@ export function ContactForm({ propertyId = null }: { propertyId?: string | null 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (submitting) return
+    const phoneCheck = validatePhoneField(phone, { required: false })
+    if (!phoneCheck.ok) {
+      setPhoneError(phoneCheck.error)
+      return
+    }
     setSubmitting(true)
-    const res = await submitInquiry({ propertyId, name, company, email, phone, message })
+    const res = await submitInquiry({
+      propertyId,
+      name,
+      company,
+      email,
+      phone: phoneCheck.value,
+      message,
+    })
     setSubmitting(false)
     if (!res.ok) {
       toast.error(res.error ?? 'Could not send your message.')
@@ -62,7 +77,21 @@ export function ContactForm({ propertyId = null }: { propertyId?: string | null 
         </div>
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="c-phone">Phone</Label>
-          <Input id="c-phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} />
+          <PhoneInput
+            id="c-phone"
+            value={phone}
+            onChange={(v) => {
+              setPhone(v)
+              setPhoneError(null)
+            }}
+            invalid={!!phoneError}
+            describedBy={phoneError ? 'c-phone-error' : undefined}
+          />
+          {phoneError && (
+            <p id="c-phone-error" className="text-sm text-destructive">
+              {phoneError}
+            </p>
+          )}
         </div>
       </div>
       <div className="flex flex-col gap-1.5">

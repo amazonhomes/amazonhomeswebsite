@@ -3,10 +3,12 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
+import { PhoneInput } from '@/components/phone-input'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { coerceInitialPhone, validatePhoneField } from '@/lib/phone'
 import { useStore } from '@/lib/store'
 import type { Property } from '@/lib/types'
 
@@ -24,7 +26,8 @@ export function OfferForm({
   const [name, setName] = useState(currentUser?.name ?? '')
   const [company, setCompany] = useState(currentUser?.company ?? '')
   const [email, setEmail] = useState(currentUser?.email ?? '')
-  const [phone, setPhone] = useState(currentUser?.phone ?? '')
+  const [phone, setPhone] = useState(coerceInitialPhone(currentUser?.phone))
+  const [phoneError, setPhoneError] = useState<string | null>(null)
 
   const [submitting, setSubmitting] = useState(false)
 
@@ -36,6 +39,11 @@ export function OfferForm({
       toast.error('Enter a valid offer amount.')
       return
     }
+    const phoneCheck = validatePhoneField(phone, { required: true })
+    if (!phoneCheck.ok) {
+      setPhoneError(phoneCheck.error)
+      return
+    }
     setSubmitting(true)
     const res = await submitOffer({
       propertyId: property.id,
@@ -43,7 +51,7 @@ export function OfferForm({
       name,
       company,
       email,
-      phone,
+      phone: phoneCheck.value,
       amount: numeric,
       notes,
     })
@@ -97,13 +105,23 @@ export function OfferForm({
         </div>
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="offer-phone">Phone</Label>
-          <Input
+          <PhoneInput
             id="offer-phone"
-            type="tel"
+            
             value={phone}
-            onChange={(e) => setPhone(e.target.value)}
+            onChange={(v) => {
+              setPhone(v)
+              setPhoneError(null)
+            }}
             required
+            invalid={!!phoneError}
+            describedBy={phoneError ? 'offer-phone-error' : undefined}
           />
+          {phoneError && (
+            <p id="offer-phone-error" className="text-sm text-destructive">
+              {phoneError}
+            </p>
+          )}
         </div>
       </div>
       <div className="flex flex-col gap-1.5">
