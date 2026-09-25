@@ -16,6 +16,7 @@ import {
   ShieldCheck,
   Sparkles,
   BadgePlus,
+  HousePlus,
   TrendingUp,
 } from "lucide-react";
 import { PageShell } from "@/components/page-shell";
@@ -251,8 +252,8 @@ export default function HomePage() {
                           </span>
                         )}
                         {isNew && (
-                          <span className="inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-2.5 py-1.5 text-xs font-semibold text-white shadow-md">
-  <BadgePlus className="size-3.5" />
+                          <span className="inline-flex items-center gap-1.5 rounded-md bg-primary px-2.5 py-1.5 text-xs font-semibold text-white shadow-md">
+  <HousePlus className="size-3.5" />
   New Listing
 </span>
                         )}
