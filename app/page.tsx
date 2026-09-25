@@ -15,6 +15,7 @@ import {
   Search,
   ShieldCheck,
   Sparkles,
+  BadgePlus,
   TrendingUp,
 } from "lucide-react";
 import { PageShell } from "@/components/page-shell";
@@ -172,7 +173,8 @@ export default function HomePage() {
         />
         <div className="absolute inset-0  from-primary via-primary/85 to-primary/60" />
         <div className="relative mx-auto max-w-6xl px-4 py-20 md:py-28">
-          <span className="inline-flex items-center gap-2 rounded-sm bg-accent px-3 py-1 text-xs font-semibold uppercase tracking-widest text-accent-foreground">
+          <span className="inline-flex items-center gap-2 rounded-sm bg-primary px-3 py-1 text-xs font-semibold uppercase tracking-widest text-white">
+            <MapPin className="size-3.5" strokeWidth={2.5} />
             Detroit, Michigan
           </span>
           <h1 className="mt-5 max-w-3xl font-display text-4xl font-bold tracking-tight text-balance [text-shadow:0_2px_10px_rgba(0,0,0,0.75)] sm:text-5xl md:text-6xl dark:text-white">
@@ -243,16 +245,16 @@ export default function HomePage() {
                     {(isHot || isNew) && (
                       <div className="absolute -top-2 left-3 z-10 flex flex-col items-start gap-1">
                         {isHot && (
-                          <span className="inline-flex items-center gap-1 rounded-sm bg-accent px-2.5 py-1 text-xs font-semibold text-accent-foreground shadow-sm">
-                            <Flame className="size-3.5" />
+                          <span className="inline-flex items-center gap-1 rounded-sm bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-700 shadow-sm">
+                            <Flame className="size-3.5 fill-red-500 text-orange-500" />
                             Hot · {count} {count === 1 ? "offer" : "offers"}
                           </span>
                         )}
                         {isNew && (
-                          <span className="inline-flex items-center gap-1 rounded-sm bg-primary px-2.5 py-1 text-xs font-semibold text-primary-foreground shadow-sm">
-                            <Sparkles className="size-3.5" />
-                            New listing
-                          </span>
+                          <span className="inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-2.5 py-1.5 text-xs font-semibold text-white shadow-md">
+  <BadgePlus className="size-3.5" />
+  New Listing
+</span>
                         )}
                       </div>
                     )}
