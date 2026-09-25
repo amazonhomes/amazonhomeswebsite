@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from 'react'
 import Link from "next/link";
 import {
   ArrowRight,
@@ -14,13 +14,11 @@ import {
   Plus,
   Search,
   ShieldCheck,
-  Sparkles,
-  BadgePlus,
   HousePlus,
   TrendingUp,
 } from "lucide-react";
 import { PageShell } from "@/components/page-shell";
-import { PropertyCard } from "@/components/property-card";
+import { BadgedPropertyCard } from '@/components/badged-property-card'
 import { Reveal } from "@/components/reveal";
 import { TestimonialsCarousel } from "@/components/testimonials-carousel";
 import { Button } from "@/components/ui/button";
@@ -141,18 +139,6 @@ export default function HomePage() {
 
   const featuredSorted = [...hotDeals, ...newListings];
 
-  // A property is flagged "New listing" if it is one of the newest listings overall,
-  // independent of whether it also ranks as a hot deal.
-  const newestIds = new Set(
-    [...listable]
-      .sort(
-        (a, b) =>
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-      )
-      .slice(0, 3)
-      .map((p) => p.id),
-  );
-
   const q = featuredQuery.trim().toLowerCase();
   const featuredFiltered = q
     ? featuredSorted.filter((p) =>
@@ -237,30 +223,9 @@ export default function HomePage() {
         {featuredFiltered.length > 0 ? (
           <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {featuredFiltered.map((property, i) => {
-              const count = offerCounts[property.id] ?? 0;
-              const isHot = count > 0;
-              const isNew = newestIds.has(property.id);
               return (
                 <Reveal key={property.id} delay={i * 90}>
-                  <div className="relative">
-                    {(isHot || isNew) && (
-                      <div className="absolute -top-2 left-3 z-10 flex flex-col items-start gap-1">
-                        {isHot && (
-                          <span className="inline-flex items-center gap-1 rounded-sm bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-700 shadow-sm">
-                            <Flame className="size-3.5 fill-red-500 text-orange-500" />
-                            Hot · {count} {count === 1 ? "offer" : "offers"}
-                          </span>
-                        )}
-                        {isNew && (
-                          <span className="inline-flex items-center gap-1.5 rounded-md bg-primary px-2.5 py-1.5 text-xs font-semibold text-white shadow-md">
-  <HousePlus className="size-3.5" />
-  New Listing
-</span>
-                        )}
-                      </div>
-                    )}
-                    <PropertyCard property={property} />
-                  </div>
+                  <BadgedPropertyCard property={property} />
                 </Reveal>
               );
             })}

@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useState } from 'react'
-import { Bookmark, Building2, LayoutDashboard, LogOut, Menu, MessageSquare, User2, X } from 'lucide-react'
+import { Bookmark, Building2, FileText, LayoutDashboard, LogOut, Menu, MessageSquare, User2, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -29,9 +29,21 @@ const nav = [
 export function SiteHeader() {
   const pathname = usePathname()
   const router = useRouter()
-  const { currentUser, logout } = useStore()
+  const { currentUser, logout, offers } = useStore()
   const { unreadCount } = useMessageNotifications()
   const [open, setOpen] = useState(false)
+
+  // Count only the signed-in investor's still-open offers (pending / under
+  // review) for the nav badge. Offers in store are already RLS-scoped to the
+  // caller; the extra id filter keeps this correct even for admins.
+  const activeOffers =
+    currentUser?.role === 'investor'
+      ? offers.filter(
+          (o) =>
+            o.userId === currentUser.id &&
+            (o.status === 'new' || o.status === 'reviewed'),
+        ).length
+      : 0
 
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur">
@@ -47,7 +59,7 @@ export function SiteHeader() {
               Amazon Homes
             </span>
             <span className="text-[11px] font-medium uppercase tracking-widest text-muted-foreground">
-              Metro Detroit Investment Deals
+              Detroit Investment Deals
             </span>
           </span>
         </Link>
@@ -104,6 +116,15 @@ export function SiteHeader() {
                   {unreadCount > 0 && (
                     <span className="ml-auto flex min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold leading-none text-primary-foreground">
                       {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  )}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => router.push('/account/offers')}>
+                  <FileText className="size-4" />
+                  My Offers
+                  {activeOffers > 0 && (
+                    <span className="ml-auto flex min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold leading-none text-primary-foreground">
+                      {activeOffers > 9 ? '9+' : activeOffers}
                     </span>
                   )}
                 </DropdownMenuItem>
@@ -183,6 +204,16 @@ export function SiteHeader() {
                       {unreadCount > 0 && (
                         <span className="ml-2 flex min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[11px] font-semibold leading-none text-primary-foreground">
                           {unreadCount > 9 ? '9+' : unreadCount}
+                        </span>
+                      )}
+                    </Link>
+                  </Button>
+                  <Button variant="outline" asChild onClick={() => setOpen(false)}>
+                    <Link href="/account/offers" className="relative">
+                      My Offers
+                      {activeOffers > 0 && (
+                        <span className="ml-2 flex min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[11px] font-semibold leading-none text-primary-foreground">
+                          {activeOffers > 9 ? '9+' : activeOffers}
                         </span>
                       )}
                     </Link>

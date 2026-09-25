@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react'
 import { SlidersHorizontal, X } from 'lucide-react'
 import { PageShell } from '@/components/page-shell'
-import { PropertyCard } from '@/components/property-card'
+import { BadgedPropertyCard } from '@/components/badged-property-card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -207,7 +207,7 @@ export default function PropertiesPage() {
         {filtered.length > 0 ? (
           <div className="mt-4 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {filtered.map((property) => (
-              <PropertyCard key={property.id} property={property} />
+              <BadgedPropertyCard key={property.id} property={property} />
             ))}
           </div>
         ) : (

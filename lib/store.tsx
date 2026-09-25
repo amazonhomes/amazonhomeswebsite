@@ -414,13 +414,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         setProperties(mergePrivate(pub.data.map(mapProperty), priv.data ?? []))
       }
       if (profile.role !== 'admin') {
-        setOffers([])
+        
         setShowings([])
         setUsers([])
-        const inq = await supabase
-          .from('inquiries')
-          .select('*')
-          .order('created_at', { ascending: false })
+        // Investors may read their OWN offers (RLS policy offers_select_own)
+        // plus their own inquiries. Both reads are scoped server-side, so this
+        // can only ever return the caller's rows — never another investor's.
+        const [off, inq] = await Promise.all([
+          supabase.from('offers').select('*').order('created_at', { ascending: false }),
+          supabase.from('inquiries').select('*').order('created_at', { ascending: false }),
+        ])
+        setOffers(off.data ? off.data.map(mapOffer) : [])
         if (inq.data) setInquiries(inq.data.map(mapInquiry))
         return
       }
@@ -645,6 +649,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       // applies via the session cookie) instead of writing directly.
       const res = await postLead('/api/offers', input)
       if (!res.ok) return res
+      // Reflect the new offer in local state right away so it appears in the
+      // investor's My Offers without a reload. RLS scopes this read to the
+      // caller's own offers (admins get all).
+      void supabase
+        .from('offers')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .then(({ data }) => {
+          if (data) setOffers(data.map(mapOffer))
+        })
       notifyLead(
         'offer',
         `New offer · ${input.name}`,

@@ -50,9 +50,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: 'Enter a valid offer amount.' }, { status: 400 })
   }
 
-  const userId = typeof body.userId === 'string' ? body.userId : null
+  
 
   const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  const userId = user?.id ?? null
 
   // Authoritative deadline/status gate. The client also hides the CTA past the
   // deadline, but that is cosmetic — this is the real enforcement point, so a
@@ -83,11 +87,14 @@ export async function POST(req: Request) {
     property_id: propertyId,
     user_id: userId,
     name,
-    company: str(body.company, MAX.text) || null,
+    // company / phone / notes are optional in the form but NOT NULL in the
+    // schema (default ''). Persist empty strings, never null, or the insert
+    // is rejected by the NOT NULL constraint.
+    company: str(body.company, MAX.text),
     email,
-    phone: str(body.phone, MAX.phone) || null,
+    phone: str(body.phone, MAX.phone),
     amount: Math.round(amountRaw),
-    notes: str(body.notes, MAX.notes) || null,
+    notes: str(body.notes, MAX.notes),
   })
 
   if (error) {

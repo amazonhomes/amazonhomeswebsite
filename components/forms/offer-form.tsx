@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -17,6 +18,7 @@ export function OfferForm({
   onDone?: () => void
 }) {
   const { currentUser, submitOffer } = useStore()
+   const router = useRouter()
   const [amount, setAmount] = useState('')
   const [notes, setNotes] = useState('')
   const [name, setName] = useState(currentUser?.name ?? '')
@@ -51,8 +53,17 @@ export function OfferForm({
       return
     }
     toast.success('Offer submitted', {
-      description: `Our team will follow up on your offer for ${property.address}.`,
-    })
+       description: currentUser
+        ? 'Track its status anytime from My Offers in your account.'
+        : `Our team will follow up on your offer for ${property.address}.`,
+      // Signed-in investors get a direct path to track the offer they just made.
+      action: currentUser
+        ? {
+            label: 'View My Offers',
+            onClick: () => router.push('/account/offers'),
+          }
+        : undefined,
+        })
     setAmount('')
     setNotes('')
     onDone?.()
