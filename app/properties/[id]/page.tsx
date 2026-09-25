@@ -149,7 +149,7 @@ export default function PropertyDetailPage() {
               {!isAuthed && (
                 <div className="flex items-center justify-between gap-4 rounded-md border border-border bg-secondary px-4 py-3">
                   <p className="flex items-center gap-2 text-sm text-foreground">
-                    <Lock className="size-4 text-accent" />
+                    <Lock className="size-4 text-primary" />
                     {property.photos.filter((p) => p.protected).length} interior
                     photos are locked.
                   </p>
@@ -494,7 +494,7 @@ function Stat({
 }) {
   return (
     <div className="flex flex-col gap-1 rounded-md border border-border bg-card p-3">
-      <Icon className="size-4 text-accent" />
+      <Icon className="size-4 text-primary" />
       <span className="font-display text-lg font-bold text-foreground">
         {value}
       </span>

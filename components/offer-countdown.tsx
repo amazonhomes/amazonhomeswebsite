@@ -27,7 +27,7 @@ export function OfferCountdown({ deadline }: { deadline: string }) {
   return (
     <div className="flex flex-col gap-1 rounded-md bg-accent/15 px-3 py-2">
       <p className="flex items-center gap-2 text-sm font-medium text-foreground">
-        <CalendarClock className="size-4 shrink-0 text-accent" />
+        <CalendarClock className="size-4 shrink-0 text-red-500" />
         Offers due {formatDeadlineDate(deadline)}
       </p>
       {/* Reserve a line so layout doesn't jump between SSR and first client tick. */}
