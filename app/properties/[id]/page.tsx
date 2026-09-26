@@ -1,9 +1,9 @@
-'use client'
+"use client";
 
-import Link from 'next/link'
-import { notFound, useParams } from 'next/navigation'
-import { useEffect, useMemo, useState } from 'react'
-import { toast } from 'sonner'
+import Link from "next/link";
+import { notFound, useParams } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import {
   ArrowLeft,
   Bath,
@@ -16,19 +16,19 @@ import {
   MapPin,
   Ruler,
   TrendingUp,
-} from 'lucide-react'
-import { PageShell } from '@/components/page-shell'
-import { OfferForm } from '@/components/forms/offer-form'
-import { ShowingForm } from '@/components/forms/showing-form'
-import { LockedImage } from '@/components/locked-image'
-import { OfferCountdown } from '@/components/offer-countdown'
-import { StatusBadge } from '@/components/status-badge'
-import { CopyButton } from '@/components/copy-button'
-import { Button } from '@/components/ui/button'
-import { Link2, MapPinnedIcon } from 'lucide-react'
-import { withUtm } from '@/lib/utm'
-import { useCountdown } from '@/lib/use-countdown'
-import { cn } from '@/lib/utils'
+} from "lucide-react";
+import { PageShell } from "@/components/page-shell";
+import { OfferForm } from "@/components/forms/offer-form";
+import { ShowingForm } from "@/components/forms/showing-form";
+import { LockedImage } from "@/components/locked-image";
+import { OfferCountdown } from "@/components/offer-countdown";
+import { StatusBadge } from "@/components/status-badge";
+import { CopyButton } from "@/components/copy-button";
+import { Button } from "@/components/ui/button";
+import { Link2, MapPinnedIcon } from "lucide-react";
+import { withUtm } from "@/lib/utm";
+import { useCountdown } from "@/lib/use-countdown";
+import { cn } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -36,12 +36,12 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from '@/components/ui/dialog'
-import { daysUntil, formatCurrency, formatDate } from '@/lib/format'
-import { useStore } from '@/lib/store'
+} from "@/components/ui/dialog";
+import { daysUntil, formatCurrency, formatDate } from "@/lib/format";
+import { useStore } from "@/lib/store";
 
 export default function PropertyDetailPage() {
-  const params = useParams<{ id: string }>()
+  const params = useParams<{ id: string }>();
   const {
     properties,
     currentUser,
@@ -50,70 +50,82 @@ export default function PropertyDetailPage() {
     ready,
     savedPropertyIds,
     toggleSaveProperty,
-  } = useStore()
-  const property = properties.find((p) => p.id === params.id)
-  const isAuthed = Boolean(currentUser)
-  const offerCount = property ? offerCounts[property.id] ?? 0 : 0
-  const [activePhoto, setActivePhoto] = useState(0)
-  const countdown = useCountdown(property?.offerDeadline ?? null)
-  const offersClosed = Boolean(countdown?.expired)
-  const saved = property ? savedPropertyIds.includes(property.id) : false
+  } = useStore();
+  const property = properties.find((p) => p.id === params.id);
+  const isAuthed = Boolean(currentUser);
+  const offerCount = property ? (offerCounts[property.id] ?? 0) : 0;
+  const [activePhoto, setActivePhoto] = useState(0);
+  const countdown = useCountdown(property?.offerDeadline ?? null);
+  const offersClosed = Boolean(countdown?.expired);
+  const saved = property ? savedPropertyIds.includes(property.id) : false;
 
   async function onToggleSave() {
-    if (!property) return
+    if (!property) return;
     if (!currentUser) {
-      toast('Log in to save this property', {
-        action: { label: 'Log in', onClick: () => (window.location.href = '/login') },
-      })
-      return
+      toast("Log in to save this property", {
+        action: {
+          label: "Log in",
+          onClick: () => (window.location.href = "/login"),
+        },
+      });
+      return;
     }
-    const result = await toggleSaveProperty(property.id)
-    if (!result.ok && result.error) toast.error(result.error)
+    const result = await toggleSaveProperty(property.id);
+    if (!result.ok && result.error) toast.error(result.error);
   }
 
   useEffect(() => {
-    if (property) incrementViews(property.id)
+    if (property) incrementViews(property.id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params.id])
+  }, [params.id]);
 
   const spread = useMemo(
-    () => (property ? property.arv - property.price - property.estimatedRehab : 0),
+    () =>
+      property ? property.arv - property.price - property.estimatedRehab : 0,
     [property],
-  )
+  );
 
-  if (ready && !property) notFound()
-  if (!property) return null
+  if (ready && !property) notFound();
+  if (!property) return null;
 
-  const deadline = daysUntil(property.offerDeadline)
-  const canTransact = property.status === 'available' || property.status === 'under-contract'
-  const cover = property.photos[activePhoto] ?? property.photos[0]
+  const deadline = daysUntil(property.offerDeadline);
+  const canTransact =
+    property.status === "available" || property.status === "under-contract";
+  const cover = property.photos[activePhoto] ?? property.photos[0];
 
   return (
     <PageShell>
       <div className="mx-auto max-w-6xl px-4 py-6">
-        <Button variant="ghost" size="sm" asChild className="mb-4 -ml-2">
-          <Link href="/properties">
-            <ArrowLeft className="size-4" /> Back to properties
-          </Link>
-        </Button>
+        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+          <Button variant="ghost" size="sm" asChild className="-ml-2 w-fit">
+            <Link href="/properties">
+              <ArrowLeft className="size-4" />
+              Back to properties
+            </Link>
+          </Button>
+
+          {offerCount > 0 && (
+            <p className="inline-flex w-fit max-w-full items-center gap-1.5 rounded-md border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-semibold text-red-700">
+              <Flame className="size-3.5 shrink-0 fill-red-500 text-orange-500" />
+              <span>
+                {offerCount === 1
+                  ? "1 offer submitted on this property"
+                  : `${offerCount} offers submitted on this property`}
+              </span>
+            </p>
+          )}
+        </div>
 
         <div className="grid gap-8 lg:grid-cols-[1.6fr_1fr]">
           {/* Left: gallery + details */}
           <div className="flex flex-col gap-6">
             <div className="flex flex-col gap-3">
-              {offerCount > 0 && (
-                <p className="flex items-center gap-2 rounded-md border border-accent/30 bg-accent/10 px-3 py-2 text-sm font-medium text-foreground">
-                  <Flame className="size-4 shrink-0 text-accent" />
-                  {offerCount === 1
-                    ? '1 offer submitted on this property'
-                    : `${offerCount} offers submitted on this property`}
-                </p>
-              )}
               <LockedImage
                 src={cover.url}
                 alt={cover.alt}
                 locked={cover.protected && !isAuthed}
-                previewUrl={cover.previewUrl}
+                 previewUrl={cover.previewUrl}
+                 propertyId={property.id}
                 className="aspect-[16/10] w-full rounded-lg"
               />
               <div className="grid grid-cols-4 gap-3">
@@ -122,7 +134,7 @@ export default function PropertyDetailPage() {
                     key={photo.url + i}
                     onClick={() => setActivePhoto(i)}
                     className={`relative overflow-hidden rounded-md ring-2 transition ${
-                      i === activePhoto ? 'ring-accent' : 'ring-transparent'
+                      i === activePhoto ? "ring-accent" : "ring-transparent"
                     }`}
                     aria-label={`View photo ${i + 1}`}
                   >
@@ -130,7 +142,7 @@ export default function PropertyDetailPage() {
                       src={photo.url}
                       alt={photo.alt}
                       locked={photo.protected && !isAuthed}
-                      previewUrl={photo.previewUrl}
+                      propertyId={property.id}
                       className="aspect-square w-full"
                       compact
                     />
@@ -140,12 +152,14 @@ export default function PropertyDetailPage() {
               {!isAuthed && (
                 <div className="flex items-center justify-between gap-4 rounded-md border border-border bg-secondary px-4 py-3">
                   <p className="flex items-center gap-2 text-sm text-foreground">
-                    <Lock className="size-4 text-accent" />
+                    <Lock className="size-4 text-primary" />
                     {property.photos.filter((p) => p.protected).length} interior
                     photos are locked.
                   </p>
                   <Button size="sm" asChild>
-                    <Link href={`/register?redirect=/properties/${property.id}`}>
+                    <Link
+                      href={`/register?redirect=/properties/${property.id}`}
+                    >
                       Unlock
                     </Link>
                   </Button>
@@ -168,7 +182,8 @@ export default function PropertyDetailPage() {
               </h1>
               <p className="mt-1 flex items-center gap-1.5 text-muted-foreground">
                 <MapPin className="size-4" />
-                {property.neighborhood}, {property.city}, {property.state} {property.zip}
+                {property.neighborhood}, {property.city}, {property.state}{" "}
+                {property.zip}
               </p>
               <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
                 <CalendarClock className="size-3.5" />
@@ -184,7 +199,7 @@ export default function PropertyDetailPage() {
                 />
                 <CopyButton
                   getValue={() =>
-                    typeof window !== 'undefined' ? window.location.href : ''
+                    typeof window !== "undefined" ? window.location.href : ""
                   }
                   label="Copy link"
                   copiedLabel="Link copied"
@@ -195,10 +210,22 @@ export default function PropertyDetailPage() {
             </div>
 
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <Stat icon={BedDouble} label="Beds" value={String(property.beds)} />
+              <Stat
+                icon={BedDouble}
+                label="Beds"
+                value={String(property.beds)}
+              />
               <Stat icon={Bath} label="Baths" value={String(property.baths)} />
-              <Stat icon={Ruler} label="Sqft" value={property.sqft.toLocaleString()} />
-              <Stat icon={CalendarClock} label="Built" value={String(property.yearBuilt)} />
+              <Stat
+                icon={Ruler}
+                label="Sqft"
+                value={property.sqft.toLocaleString()}
+              />
+              <Stat
+                icon={CalendarClock}
+                label="Built"
+                value={String(property.yearBuilt)}
+              />
             </div>
 
             <div>
@@ -211,7 +238,9 @@ export default function PropertyDetailPage() {
             </div>
 
             <div>
-              <h2 className="font-display text-xl font-bold text-foreground">Location</h2>
+              <h2 className="font-display text-xl font-bold text-foreground">
+                Location
+              </h2>
               {isAuthed ? (
                 <div className="mt-3 overflow-hidden rounded-lg border border-border">
                   <iframe
@@ -228,7 +257,7 @@ export default function PropertyDetailPage() {
                       `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
                         `${property.address}, ${property.city}, ${property.state} ${property.zip}`,
                       )}`,
-                      { utm_campaign: 'property_map' },
+                      { utm_campaign: "property_map" },
                     )}
                     target="_blank"
                     rel="noopener noreferrer"
@@ -241,18 +270,24 @@ export default function PropertyDetailPage() {
               ) : (
                 <div className="mt-3 flex items-center justify-between gap-4 rounded-lg border border-dashed border-border p-4">
                   <p className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Lock className="size-4" /> The exact location and map unlock
-                    after you register.
+                    <Lock className="size-4" /> The exact location and map
+                    unlock after you register.
                   </p>
                   <Button size="sm" asChild>
-                    <Link href={`/register?redirect=/properties/${property.id}`}>Unlock</Link>
+                    <Link
+                      href={`/register?redirect=/properties/${property.id}`}
+                    >
+                      Unlock
+                    </Link>
                   </Button>
                 </div>
               )}
             </div>
 
             <div>
-              <h2 className="font-display text-xl font-bold text-foreground">Highlights</h2>
+              <h2 className="font-display text-xl font-bold text-foreground">
+                Highlights
+              </h2>
               <ul className="mt-3 grid gap-2 sm:grid-cols-2">
                 {property.highlights.map((h) => (
                   <li
@@ -281,7 +316,9 @@ export default function PropertyDetailPage() {
                     registered investors.
                   </p>
                   <Button size="sm" variant="outline" asChild>
-                    <Link href={`/login?redirect=/properties/${property.id}`}>Log in</Link>
+                    <Link href={`/login?redirect=/properties/${property.id}`}>
+                      Log in
+                    </Link>
                   </Button>
                 </div>
               )}
@@ -300,8 +337,14 @@ export default function PropertyDetailPage() {
 
               {isAuthed ? (
                 <dl className="flex flex-col gap-2.5 rounded-md bg-secondary p-4 text-sm">
-                  <Row label="After-repair value (ARV)" value={formatCurrency(property.arv)} />
-                  <Row label="Estimated rehab" value={formatCurrency(property.estimatedRehab)} />
+                  <Row
+                    label="After-repair value (ARV)"
+                    value={formatCurrency(property.arv)}
+                  />
+                  <Row
+                    label="Estimated rehab"
+                    value={formatCurrency(property.estimatedRehab)}
+                  />
                   <div className="my-1 h-px bg-border" />
                   <Row
                     label="Estimated spread"
@@ -311,7 +354,10 @@ export default function PropertyDetailPage() {
                 </dl>
               ) : (
                 <div className="relative overflow-hidden rounded-md bg-secondary p-4">
-                  <div className="flex flex-col gap-2.5 text-sm blur-sm select-none" aria-hidden="true">
+                  <div
+                    className="flex flex-col gap-2.5 text-sm blur-sm select-none"
+                    aria-hidden="true"
+                  >
                     <Row label="After-repair value (ARV)" value="$000,000" />
                     <Row label="Estimated rehab" value="$00,000" />
                     <Row label="Estimated spread" value="$00,000" emphasize />
@@ -322,7 +368,9 @@ export default function PropertyDetailPage() {
                       Financials locked
                     </p>
                     <Button size="sm" asChild>
-                      <Link href={`/register?redirect=/properties/${property.id}`}>
+                      <Link
+                        href={`/register?redirect=/properties/${property.id}`}
+                      >
                         Register to view
                       </Link>
                     </Button>
@@ -369,7 +417,8 @@ export default function PropertyDetailPage() {
                         <DialogHeader>
                           <DialogTitle>Submit an offer</DialogTitle>
                           <DialogDescription>
-                            {property.address} · Asking {formatCurrency(property.price)}
+                            {property.address} · Asking{" "}
+                            {formatCurrency(property.price)}
                           </DialogDescription>
                         </DialogHeader>
                         <OfferForm property={property} />
@@ -395,7 +444,9 @@ export default function PropertyDetailPage() {
                 ) : (
                   <div className="flex flex-col gap-2.5">
                     <Button size="lg" asChild>
-                      <Link href={`/register?redirect=/properties/${property.id}`}>
+                      <Link
+                        href={`/register?redirect=/properties/${property.id}`}
+                      >
                         Register to make an offer
                       </Link>
                     </Button>
@@ -420,8 +471,8 @@ export default function PropertyDetailPage() {
                 aria-pressed={saved}
                 className="justify-center gap-2"
               >
-                <Bookmark className={cn('size-4', saved && 'fill-current')} />
-                {saved ? 'Saved' : 'Save property'}
+                <Bookmark className={cn("size-4", saved && "fill-current")} />
+                {saved ? "Saved" : "Save property"}
               </Button>
 
               <p className="text-center text-xs text-muted-foreground">
@@ -432,7 +483,7 @@ export default function PropertyDetailPage() {
         </div>
       </div>
     </PageShell>
-  )
+  );
 }
 
 function Stat({
@@ -440,17 +491,19 @@ function Stat({
   label,
   value,
 }: {
-  icon: typeof BedDouble
-  label: string
-  value: string
+  icon: typeof BedDouble;
+  label: string;
+  value: string;
 }) {
   return (
     <div className="flex flex-col gap-1 rounded-md border border-border bg-card p-3">
-      <Icon className="size-4 text-accent" />
-      <span className="font-display text-lg font-bold text-foreground">{value}</span>
+      <Icon className="size-4 text-primary" />
+      <span className="font-display text-lg font-bold text-foreground">
+        {value}
+      </span>
       <span className="text-xs text-muted-foreground">{label}</span>
     </div>
-  )
+  );
 }
 
 function Row({
@@ -458,9 +511,9 @@ function Row({
   value,
   emphasize,
 }: {
-  label: string
-  value: string
-  emphasize?: boolean
+  label: string;
+  value: string;
+  emphasize?: boolean;
 }) {
   return (
     <div className="flex items-center justify-between">
@@ -468,12 +521,12 @@ function Row({
       <dd
         className={
           emphasize
-            ? 'font-display text-base font-bold text-foreground'
-            : 'font-medium text-foreground'
+            ? "font-display text-base font-bold text-foreground"
+            : "font-medium text-foreground"
         }
       >
         {value}
       </dd>
     </div>
-  )
+  );
 }

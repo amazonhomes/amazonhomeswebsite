@@ -139,15 +139,29 @@ export function PropertyEditor({
     }))
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  const [saving, setSaving] = useState(false)
+
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     const highlights = highlightsText
       .split('\n')
       .map((h) => h.trim())
       .filter(Boolean)
-    saveProperty({ ...draft, highlights })
-    toast.success(property ? 'Property updated' : 'Property added')
-    onOpenChange(false)
+    setSaving(true)
+    try {
+      await saveProperty({ ...draft, highlights })
+      toast.success(property ? 'Property updated' : 'Property added')
+      onOpenChange(false)
+    } catch (err) {
+      // Never expose an original on failure — keep the dialog open and report.
+      toast.error(
+        err instanceof Error && err.message
+          ? `Could not save property: ${err.message}`
+          : 'Could not save property. Please try again.',
+      )
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (

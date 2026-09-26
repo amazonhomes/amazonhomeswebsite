@@ -1,15 +1,25 @@
 'use client'
 
 import Link from 'next/link'
+import useSWR from 'swr'
 import { Lock } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { isPrivateStoragePath } from '@/lib/property-images'
+
+async function fetchSignedUrl(url: string): Promise<string | null> {
+  const res = await fetch(url)
+  if (!res.ok) return null
+  const data = (await res.json().catch(() => null)) as { url?: string } | null
+  return data?.url ?? null
+}
 
 export function LockedImage({
   src,
   alt,
   locked,
   previewUrl,
+  propertyId,
   className,
   compact = false,
 }: {
@@ -19,13 +29,39 @@ export function LockedImage({
   /** Safe low-res/blurred stand-in shown when `locked`. The full-resolution
    *  `src` is never rendered while locked, so the original stays private. */
   previewUrl?: string | null
+  /** Required to resolve a protected original stored as a private Storage path
+   *  into a short-lived signed URL (authenticated viewers only). */
+  propertyId?: string
   className?: string
   compact?: boolean
 }) {
+  // A protected original may be stored as a private Storage object PATH rather
+  // than a directly usable URL. For an unlocked (authenticated) viewer we swap
+  // that path for a short-lived signed URL fetched from our server route.
+  const needsSignedUrl = !locked && isPrivateStoragePath(src) && Boolean(propertyId)
+  const { data: signedUrl } = useSWR(
+    needsSignedUrl
+      ? `/api/property-images/signed-url?propertyId=${encodeURIComponent(
+          propertyId as string,
+        )}&path=${encodeURIComponent(src)}`
+      : null,
+    fetchSignedUrl,
+    { revalidateOnFocus: false, refreshInterval: 8 * 60 * 1000 },
+  )
+
   // When locked, render ONLY the safe preview (never the full-res original).
   // The heavy CSS blur is aesthetic; the preview is already a non-revealing,
   // low-resolution image, so no interior detail leaks even via devtools.
-  const displaySrc = locked ? previewUrl || '/placeholder.svg' : src || '/placeholder.svg'
+  let displaySrc: string
+  if (locked) {
+    displaySrc = previewUrl || '/placeholder.svg'
+  } else if (needsSignedUrl) {
+    // Never fall back to the raw private path; show the placeholder until the
+    // signed URL resolves (or if it fails), so the original stays protected.
+    displaySrc = signedUrl || '/placeholder.svg'
+  } else {
+    displaySrc = src || '/placeholder.svg'
+  }
 
   return (
     <div className={cn('relative overflow-hidden bg-muted', className)}>

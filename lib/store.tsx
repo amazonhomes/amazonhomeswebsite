@@ -12,6 +12,7 @@ import {
 } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { getClientAuthCallbackUrl } from '@/lib/site'
+import { preparePhotosForSave } from '@/lib/property-images'
 import type {
   AuditLog,
   Inquiry,
@@ -239,6 +240,8 @@ function redactPhotos(photos: Property['photos']) {
       : ph,
   )
 }
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 /** Property -> public `properties` column shape. Premium fields (ARV, rehab,
  *  showing info, protected photo URLs) are redacted here; they live only in the
@@ -764,21 +767,28 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const saveProperty = useCallback<StoreContextValue['saveProperty']>(
     async (property) => {
+      // Upload any newly added photos to Storage first: protected originals to
+      // the private bucket, safe derived previews + public photos to the public
+      // preview bucket. Throws on failure so no original is ever exposed.
+      const withStored = {
+        ...property,
+        photos: await preparePhotosForSave(supabase, property.id, property.photos),
+      }
       // Public row is redacted; premium values go to the private table.
       const [pubRes] = await Promise.all([
-        supabase.from('properties').upsert(propertyToRow(property)).select('*').maybeSingle(),
-        supabase.from('property_private').upsert(propertyToPrivateRow(property)),
+        supabase.from('properties').upsert(propertyToRow(withStored)).select('*').maybeSingle(),
+        supabase.from('property_private').upsert(propertyToPrivateRow(withStored)),
       ])
       // Local state keeps the full record so the admin keeps seeing premium data.
       const mapped: Property = pubRes.data
         ? {
             ...mapProperty(pubRes.data),
-            arv: property.arv,
-            estimatedRehab: property.estimatedRehab,
-            showingInfo: property.showingInfo,
-            photos: property.photos,
+            arv: withStored.arv,
+            estimatedRehab: withStored.estimatedRehab,
+            showingInfo: withStored.showingInfo,
+            photos: withStored.photos,
           }
-        : property
+        : withStored
       setProperties((prev) => {
         const exists = prev.some((p) => p.id === mapped.id)
         return exists

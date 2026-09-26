@@ -1,8 +1,21 @@
 import type { Inquiry, Offer, Property, ShowingRequest, Testimonial, User } from './types'
 
+const PREVIEW_BASE =
+  'https://agmwvmdnwalrfpnyvrrs.supabase.co/storage/v1/object/public/property-previews/properties/_legacy'
+
 const interiorPhotos = [
-  { url: '/properties/interior-living.png', alt: 'Interior living room', protected: true },
-  { url: '/properties/interior-kitchen.png', alt: 'Interior kitchen', protected: true },
+  {
+    url: 'properties/_legacy/interior-living.png',
+    previewUrl: `${PREVIEW_BASE}/interior-living-preview.png`,
+    alt: 'Interior living room',
+    protected: true,
+  },
+  {
+    url: 'properties/_legacy/interior-kitchen.png',
+    previewUrl: `${PREVIEW_BASE}/interior-kitchen-preview.png`,
+    alt: 'Interior kitchen',
+    protected: true,
+  },
 ]
 
 export const seedProperties: Property[] = [
