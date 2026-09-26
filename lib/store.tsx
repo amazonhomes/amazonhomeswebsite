@@ -228,12 +228,15 @@ function mapProfile(r: any): User {
   }
 }
 
-/** Strip URLs from protected photos so the world-readable `properties` table
- *  never leaks premium interior imagery. The placeholder entry + `protected`
- *  flag stay so the UI still renders the locked slots in order. */
+/** Strip the FULL-resolution URL from protected photos so the world-readable
+ *  `properties` table never leaks premium interior imagery. The safe low-res
+ *  `previewUrl`, `alt`, and `protected` flag stay so the locked gallery can
+ *  render a real blurred preview (never the original) in the correct slot. */
 function redactPhotos(photos: Property['photos']) {
   return (photos ?? []).map((ph) =>
-    ph.protected ? { url: '', alt: ph.alt, protected: true } : ph,
+    ph.protected
+      ? { url: '', alt: ph.alt, protected: true, previewUrl: ph.previewUrl ?? null }
+      : ph,
   )
 }
 
@@ -634,8 +637,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(async () => {
     await supabase.auth.signOut()
     setCurrentUser(null)
-    await loadScopedData(null)
-  }, [supabase, loadScopedData])
+    // Reload the world-readable payload so any full-resolution protected photo
+    // URLs (and other premium fields) that were merged in while authenticated
+    // are purged from state — logged-out visitors fall back to safe previews.
+    await Promise.all([loadPublic(), loadScopedData(null)])
+  }, [supabase, loadPublic, loadScopedData])
 
   const refresh = useCallback(async () => {
     await syncSession()

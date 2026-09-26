@@ -9,23 +9,32 @@ export function LockedImage({
   src,
   alt,
   locked,
+  previewUrl,
   className,
   compact = false,
 }: {
   src: string
   alt: string
   locked: boolean
+  /** Safe low-res/blurred stand-in shown when `locked`. The full-resolution
+   *  `src` is never rendered while locked, so the original stays private. */
+  previewUrl?: string | null
   className?: string
   compact?: boolean
 }) {
+  // When locked, render ONLY the safe preview (never the full-res original).
+  // The heavy CSS blur is aesthetic; the preview is already a non-revealing,
+  // low-resolution image, so no interior detail leaks even via devtools.
+  const displaySrc = locked ? previewUrl || '/placeholder.svg' : src || '/placeholder.svg'
+
   return (
     <div className={cn('relative overflow-hidden bg-muted', className)}>
       <img
-        src={src || '/placeholder.svg'}
+        src={displaySrc}
         alt={locked ? 'Protected property photo — sign in to view' : alt}
         className={cn(
           'size-full object-cover transition-transform duration-500',
-          locked && 'scale-105 blur-sm brightness-95',
+          locked && 'scale-105 blur-xl brightness-95',
         )}
       />
       {locked && (

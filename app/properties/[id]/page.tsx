@@ -124,6 +124,7 @@ export default function PropertyDetailPage() {
                 src={cover.url}
                 alt={cover.alt}
                 locked={cover.protected && !isAuthed}
+                 previewUrl={cover.previewUrl}
                 className="aspect-[16/10] w-full rounded-lg"
               />
               <div className="grid grid-cols-4 gap-3">
@@ -140,6 +141,7 @@ export default function PropertyDetailPage() {
                       src={photo.url}
                       alt={photo.alt}
                       locked={photo.protected && !isAuthed}
+                      previewUrl={photo.previewUrl}
                       className="aspect-square w-full"
                       compact
                     />

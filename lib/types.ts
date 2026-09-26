@@ -10,10 +10,17 @@ export type PropertyType =
   | 'Fixer Upper'
 
 export interface PropertyPhoto {
+   /** Full-resolution image. For protected photos this is only present for
+   *  authenticated investors (served from the RLS-protected `property_private`
+   *  table); it is stripped from the world-readable payload. */
   url: string
   alt: string
   /** Protected photos are blurred until the visitor is authenticated. */
   protected: boolean
+  /** Safe, low-resolution/blurred stand-in that is public by design. Protected
+   *  photos expose only this to logged-out visitors, so the locked gallery can
+   *  render a real blurred preview without ever leaking the full image. */
+  previewUrl?: string | null
 }
 
 export interface Property {
