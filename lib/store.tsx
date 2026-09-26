@@ -417,7 +417,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         setProperties(mergePrivate(pub.data.map(mapProperty), priv.data ?? []))
       }
       if (profile.role !== 'admin') {
-        
         setShowings([])
         setUsers([])
         // Investors may read their OWN offers (RLS policy offers_select_own)

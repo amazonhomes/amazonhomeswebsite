@@ -10,7 +10,7 @@ export type PropertyType =
   | 'Fixer Upper'
 
 export interface PropertyPhoto {
-   /** Full-resolution image. For protected photos this is only present for
+  /** Full-resolution image. For protected photos this is only present for
    *  authenticated investors (served from the RLS-protected `property_private`
    *  table); it is stripped from the world-readable payload. */
   url: string
