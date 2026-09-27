@@ -1,6 +1,5 @@
 'use client'
 
-import { useRef } from 'react'
 import Link from 'next/link'
 import useSWR from 'swr'
 import { Lock } from 'lucide-react'
@@ -8,14 +7,11 @@ import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { isPrivateStoragePath } from '@/lib/property-images'
 
-// Throw on failure (rather than resolving null) so SWR treats it as an error
-// and applies its bounded retry instead of caching a permanent miss.
-async function fetchSignedUrl(url: string): Promise<string> {
+async function fetchSignedUrl(url: string): Promise<string | null> {
   const res = await fetch(url)
-  if (!res.ok) throw new Error(`Signed URL request failed: ${res.status}`)
+  if (!res.ok) return null
   const data = (await res.json().catch(() => null)) as { url?: string } | null
-  if (!data?.url) throw new Error('Signed URL missing from response')
-  return data.url
+  return data?.url ?? null
 }
 
 export function LockedImage({
@@ -43,25 +39,15 @@ export function LockedImage({
   // than a directly usable URL. For an unlocked (authenticated) viewer we swap
   // that path for a short-lived signed URL fetched from our server route.
   const needsSignedUrl = !locked && isPrivateStoragePath(src) && Boolean(propertyId)
-  const { data: signedUrl, mutate } = useSWR(
+  const { data: signedUrl } = useSWR(
     needsSignedUrl
       ? `/api/property-images/signed-url?propertyId=${encodeURIComponent(
           propertyId as string,
         )}&path=${encodeURIComponent(src)}`
       : null,
     fetchSignedUrl,
-    { revalidateOnFocus: false, refreshInterval: 8 * 60 * 1000, errorRetryCount: 2 },
+    { revalidateOnFocus: false, refreshInterval: 8 * 60 * 1000 },
   )
-
-  // If a signed URL fails to load (e.g. it expired while the tab slept),
-  // re-sign exactly once per path. A genuinely missing object keeps the
-  // placeholder instead of looping on fresh tokens.
-  const resignedPath = useRef<string | null>(null)
-  const handleImageError = () => {
-    if (!needsSignedUrl || !signedUrl || resignedPath.current === src) return
-    resignedPath.current = src
-    void mutate()
-  }
 
   // When locked, render ONLY the safe preview (never the full-res original).
   // The heavy CSS blur is aesthetic; the preview is already a non-revealing,
@@ -81,7 +67,6 @@ export function LockedImage({
     <div className={cn('relative overflow-hidden bg-muted', className)}>
       <img
         src={displaySrc}
-        onError={handleImageError}
         alt={locked ? 'Protected property photo — sign in to view' : alt}
         className={cn(
           'size-full object-cover transition-transform duration-500',

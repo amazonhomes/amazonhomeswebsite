@@ -358,11 +358,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [testimonials, setTestimonials] = useState<Testimonial[]>([])
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([])
   const [savedPropertyIds, setSavedPropertyIds] = useState<string[]>([])
-  // Latest `property_private` rows for the signed-in session (null when signed
-  // out). loadPublic and loadScopedData run concurrently on init; without this,
-  // a late-arriving redacted public payload overwrote the merged private photo
-  // paths with `url: ''`, leaving protected gallery slots on the placeholder.
-  const privateRowsRef = useRef<any[] | null>(null)
 
   // Load the public data anyone may read (RLS: select using true).
   const loadPublic = useCallback(async () => {
@@ -371,11 +366,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       supabase.from('testimonials').select('*').order('created_at', { ascending: false }),
       supabase.from('property_offer_counts').select('property_id, offer_count'),
     ])
-    if (props.data) {
-      const mapped = props.data.map(mapProperty)
-      const privateRows = privateRowsRef.current
-      setProperties(privateRows ? mergePrivate(mapped, privateRows) : mapped)
-    }
+    if (props.data) setProperties(props.data.map(mapProperty))
     if (tests.data) setTestimonials(tests.data.map(mapTestimonial))
     if (counts.data) {
       setOfferCounts(
@@ -396,7 +387,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const loadScopedData = useCallback(
     async (profile: User | null) => {
       if (!profile) {
-        privateRowsRef.current = null
         setOffers([])
         setShowings([])
         setInquiries([])
@@ -419,9 +409,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         supabase.from('properties').select('*').order('created_at', { ascending: false }),
         supabase.from('property_private').select('*'),
       ])
-      if (priv.data) privateRowsRef.current = priv.data
       if (pub.data) {
-        setProperties(mergePrivate(pub.data.map(mapProperty), privateRowsRef.current ?? []))
+        setProperties(mergePrivate(pub.data.map(mapProperty), priv.data ?? []))
       }
       if (profile.role !== 'admin') {
         setShowings([])
@@ -642,7 +631,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(async () => {
     await supabase.auth.signOut()
-    privateRowsRef.current = null
     setCurrentUser(null)
     // Reload the world-readable payload so any full-resolution protected photo
     // URLs (and other premium fields) that were merged in while authenticated
