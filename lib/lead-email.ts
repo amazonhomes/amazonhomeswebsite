@@ -86,7 +86,7 @@ const BG = '#f4f5f6'
 
 /** Escapes user-provided text before it is interpolated into HTML, so a lead
  * cannot inject markup through name/message/company/address fields. */
-function escapeHtml(value: string): string {
+export function escapeHtml(value: string): string {
   return value
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -96,7 +96,7 @@ function escapeHtml(value: string): string {
 }
 
 /** Preserves user line breaks after escaping, for the message/notes block. */
-function escapeHtmlMultiline(value: string): string {
+export function escapeHtmlMultiline(value: string): string {
   return escapeHtml(value).replace(/\n/g, '<br />')
 }
 

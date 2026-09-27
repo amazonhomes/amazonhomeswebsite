@@ -196,6 +196,9 @@ export async function writeAudit(entry: {
   action: string
   recordId: string | null
   status: string
+  /** Table the action applies to. Defaults to "profiles" to preserve every
+   *  existing call site's behavior unchanged. */
+  table?: string
 }): Promise<void> {
   try {
     const admin = createAdminClient()
@@ -203,7 +206,7 @@ export async function writeAudit(entry: {
       actor_id: entry.actorId,
       actor_role: entry.actorRole,
       action: entry.action,
-      table_name: "profiles",
+      table_name: entry.table ?? "profiles",
       record_id: entry.recordId,
       status: entry.status,
     })

@@ -217,7 +217,9 @@ function AdminDashboard() {
     updateOfferStatus,
     updateShowingStatus,
     updateInquiryStatus,
-    replyToInquiry,
+    markInquiryRead,
+    sendAdminReply,
+    deleteInquiry,
     startConversation,
     addTestimonial,
     deleteTestimonial,
@@ -625,11 +627,13 @@ function AdminDashboard() {
           {section === 'messages' && (
             <Panel title="Messages" subtitle="Contact-form messages from investors and visitors.">
               <MessagesInbox
-                inquiries={inquiries}
-                propertyMap={propertyMap}
-                onUpdateStatus={updateInquiryStatus}
-                onReply={replyToInquiry}
-              />
+                  inquiries={inquiries}
+                  propertyMap={propertyMap}
+                  onUpdateStatus={updateInquiryStatus}
+                  onMarkRead={markInquiryRead}
+                  onSendReply={sendAdminReply}
+                  onDelete={deleteInquiry}
+                />
             </Panel>
           )}
 

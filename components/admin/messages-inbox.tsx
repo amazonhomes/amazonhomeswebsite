@@ -1,19 +1,26 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { ArrowLeft, Building2, Check, Mail, Phone, Reply, Send } from 'lucide-react'
+import { AlertCircle, ArrowLeft, Building2, Check, Mail, Phone, Reply, Send, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
+import { useConfirm } from '@/components/confirm-dialog'
 import { formatDateTime, timeAgo } from '@/lib/format'
 import type { Inquiry, Property } from '@/lib/types'
 
-type Filter = 'all' | 'new' | 'responded'
+type Filter = 'all' | 'unread' | 'responded'
+type DisplayStatus = 'unread' | 'read' | 'responded'
 
 const FILTERS: { id: Filter; label: string }[] = [
   { id: 'all', label: 'All' },
-  { id: 'new', label: 'Unread' },
+  { id: 'unread', label: 'Unread' },
   { id: 'responded', label: 'Responded' },
 ]
+
+function displayStatus(i: Inquiry): DisplayStatus {
+  if (i.status === 'responded') return 'responded'
+  return i.readAt ? 'read' : 'unread'
+}
 
 function initials(name: string) {
   return name
@@ -29,14 +36,18 @@ export function MessagesInbox({
   inquiries,
   propertyMap,
   onUpdateStatus,
-  onReply,
+  onMarkRead,
+  onSendReply,
+  onDelete,
   focusId,
   onFocusHandled,
 }: {
   inquiries: Inquiry[]
   propertyMap: Record<string, Property>
   onUpdateStatus: (id: string, status: Inquiry['status']) => void
-  onReply: (id: string, body: string) => Promise<void>
+  onMarkRead: (id: string) => void
+  onSendReply: (id: string, body: string) => Promise<{ ok: boolean; error?: string }>
+  onDelete: (id: string) => Promise<{ ok: boolean; error?: string }>
   /** When set, open this conversation and focus the composer (used when the
    *  admin clicks "Message" on an offer or showing). */
   focusId?: string | null
@@ -46,11 +57,14 @@ export function MessagesInbox({
   const [selectedId, setSelectedId] = useState<string | null>(inquiries[0]?.id ?? null)
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
+  const [sendError, setSendError] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState(false)
   // On phone/tablet the list and thread are separate screens (messenger-style).
   // `true` shows the thread; `false` shows the conversation list.
   const [mobileThread, setMobileThread] = useState(false)
   const threadEndRef = useRef<HTMLDivElement>(null)
   const composerRef = useRef<HTMLTextAreaElement>(null)
+  const { confirm, dialog } = useConfirm()
 
   // Jump to a requested conversation and focus its composer.
   useEffect(() => {
@@ -63,7 +77,11 @@ export function MessagesInbox({
     return () => clearTimeout(t)
   }, [focusId, inquiries, onFocusHandled])
 
-  const filtered = inquiries.filter((i) => (filter === 'all' ? true : i.status === filter))
+  const filtered = inquiries.filter((i) => {
+    if (filter === 'all') return true
+    if (filter === 'unread') return displayStatus(i) === 'unread'
+    return i.status === 'responded'
+  })
 
   // Keep a valid selection as the list changes.
   useEffect(() => {
@@ -79,10 +97,18 @@ export function MessagesInbox({
   // Reset the composer when switching conversations.
   useEffect(() => {
     setDraft('')
+    setSendError(null)
   }, [selectedId])
 
   const selected = inquiries.find((i) => i.id === selectedId) ?? null
-  const newCount = inquiries.filter((i) => i.status === 'new').length
+  const unreadCount = inquiries.filter((i) => displayStatus(i) === 'unread').length
+
+  // Mark a newly-opened, unread conversation as read.
+  useEffect(() => {
+    if (selected && displayStatus(selected) === 'unread') {
+      onMarkRead(selected.id)
+    }
+  }, [selected, onMarkRead])
 
   useEffect(() => {
     threadEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
@@ -93,16 +119,45 @@ export function MessagesInbox({
   async function handleSend() {
     if (!selected || !draft.trim() || sending) return
     setSending(true)
+    setSendError(null)
     try {
-      await onReply(selected.id, draft.trim())
-      setDraft('')
+      const res = await onSendReply(selected.id, draft.trim())
+      if (res.ok) {
+        setDraft('')
+      } else {
+        setSendError(res.error || 'The reply could not be sent. Please try again.')
+      }
     } finally {
       setSending(false)
     }
   }
 
+  async function handleDelete() {
+    if (!selected || deleting) return
+    const confirmed = await confirm({
+      title: 'Delete this message?',
+      description: `This permanently deletes the conversation with ${selected.name}. This cannot be undone.`,
+      confirmLabel: 'Delete',
+      destructive: true,
+    })
+    if (!confirmed) return
+    setDeleting(true)
+    try {
+      const res = await onDelete(selected.id)
+      if (res.ok) {
+        setSelectedId(null)
+        setMobileThread(false)
+      } else {
+        setSendError(res.error || 'Unable to delete this message.')
+      }
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   return (
     <div className="flex h-[calc(100dvh-14rem)] flex-col overflow-hidden rounded-xl border border-border bg-card">
+      {dialog}
       {/* Filter bar */}
       <div className="flex shrink-0 items-center gap-1 border-b border-border px-3 py-2">
         {FILTERS.map((f) => {
@@ -110,7 +165,9 @@ export function MessagesInbox({
           const count =
             f.id === 'all'
               ? inquiries.length
-              : inquiries.filter((i) => i.status === f.id).length
+              : f.id === 'unread'
+                ? unreadCount
+                : inquiries.filter((i) => i.status === 'responded').length
           return (
             <button
               key={f.id}
@@ -129,7 +186,7 @@ export function MessagesInbox({
         })}
         <span className="ml-auto flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
           <span className="flex size-2 rounded-full bg-accent" aria-hidden />
-          {newCount} unread
+          {unreadCount} unread
         </span>
       </div>
 
@@ -147,7 +204,7 @@ export function MessagesInbox({
           )}
           {filtered.map((i) => {
             const active = i.id === selectedId
-            const unread = i.status === 'new'
+            const unread = displayStatus(i) === 'unread'
             return (
               <li key={i.id}>
                 <button
@@ -246,15 +303,33 @@ export function MessagesInbox({
                   </div>
                 </div>
               </div>
-              <span
-                className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset ${
-                  selected.status === 'new'
-                    ? 'bg-accent/15 text-accent-foreground ring-accent/30'
-                    : 'bg-primary/10 text-primary ring-primary/25'
-                }`}
-              >
-                {selected.status === 'new' ? 'Unread' : 'Responded'}
-              </span>
+              <div className="flex items-center gap-2">
+                <span
+                  className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset ${
+                    displayStatus(selected) === 'unread'
+                      ? 'bg-accent/15 text-accent-foreground ring-accent/30'
+                      : displayStatus(selected) === 'read'
+                        ? 'bg-secondary text-muted-foreground ring-border'
+                        : 'bg-primary/10 text-primary ring-primary/25'
+                  }`}
+                >
+                  {displayStatus(selected) === 'unread'
+                    ? 'Unread'
+                    : displayStatus(selected) === 'read'
+                      ? 'Read'
+                      : 'Responded'}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  aria-label="Delete message"
+                  className="text-muted-foreground hover:text-destructive"
+                >
+                  <Trash2 className="size-4" />
+                </Button>
+              </div>
             </div>
 
             {/* Conversation thread */}
@@ -330,25 +405,30 @@ export function MessagesInbox({
                     void handleSend()
                   }
                 }}
-                placeholder={`Reply to ${selected.name}…`}
+                placeholder={`Reply to ${selected.name} by email…`}
                 rows={3}
                 className="resize-none"
               />
+              {sendError && (
+                <p className="mt-2 flex items-center gap-1.5 text-xs font-medium text-destructive">
+                  <AlertCircle className="size-3.5" /> {sendError}
+                </p>
+              )}
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <Button onClick={handleSend} disabled={!draft.trim() || sending}>
                   <Send className="size-4" />
-                  {sending ? 'Sending…' : 'Send reply'}
+                  {sending ? 'Sending…' : 'Send email reply'}
                 </Button>
-                {selected.status === 'new' ? (
+                {selected.status === 'responded' ? (
+                  <Button variant="outline" onClick={() => onUpdateStatus(selected.id, 'new')}>
+                    Mark unread
+                  </Button>
+                ) : (
                   <Button
                     variant="outline"
                     onClick={() => onUpdateStatus(selected.id, 'responded')}
                   >
                     <Check className="size-4" /> Mark responded
-                  </Button>
-                ) : (
-                  <Button variant="outline" onClick={() => onUpdateStatus(selected.id, 'new')}>
-                    Mark unread
                   </Button>
                 )}
                 <span className="ml-auto hidden text-[11px] text-muted-foreground sm:block">

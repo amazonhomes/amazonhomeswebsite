@@ -76,7 +76,7 @@ interface StoreContextValue {
     input: Omit<ShowingRequest, 'id' | 'status' | 'createdAt'>,
   ) => Promise<{ ok: boolean; error?: string }>
   submitInquiry: (
-    input: Omit<Inquiry, 'id' | 'status' | 'createdAt' | 'replies'>,
+    input: Omit<Inquiry, 'id' | 'status' | 'createdAt' | 'replies' | 'readAt'>,
   ) => Promise<{ ok: boolean; error?: string }>
   incrementViews: (propertyId: string) => Promise<void>
   /** Toggle a bookmark for the signed-in user. Optimistic: flips local state
@@ -91,7 +91,13 @@ interface StoreContextValue {
   updateOfferStatus: (id: string, status: Offer['status']) => Promise<void>
   updateShowingStatus: (id: string, status: ShowingRequest['status']) => Promise<void>
   updateInquiryStatus: (id: string, status: Inquiry['status']) => Promise<void>
+  /** Marks a conversation as read (no-op if already read). */
+  markInquiryRead: (id: string) => Promise<void>
   replyToInquiry: (id: string, body: string) => Promise<void>
+  /** Admin-only: emails the lead directly and marks the inquiry responded. */
+  sendAdminReply: (id: string, body: string) => Promise<{ ok: boolean; error?: string }>
+  /** Admin-only: permanently deletes an inquiry. */
+  deleteInquiry: (id: string) => Promise<{ ok: boolean; error?: string }>
   /** Ensure a message thread exists for a lead (offer/showing contact). Reuses
    *  an existing inquiry from the same email or creates one, and returns its id
    *  so the admin can jump straight into composing a reply. */
@@ -189,6 +195,7 @@ function mapInquiry(r: any): Inquiry {
     status: r.status,
     replies: Array.isArray(r.replies) ? r.replies : [],
     createdAt: r.created_at,
+    readAt: r.read_at ?? null,
   }
 }
 
@@ -793,10 +800,28 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const updateInquiryStatus = useCallback<StoreContextValue['updateInquiryStatus']>(
     async (id, status) => {
-      await supabase.from('inquiries').update({ status }).eq('id', id)
-      setInquiries((prev) => prev.map((i) => (i.id === id ? { ...i, status } : i)))
+      const existing = inquiries.find((i) => i.id === id)
+      if (!existing || existing.status === status) return
+      // "Responded" implies read; explicitly reverting to "new" via this
+      // action means "treat as unread again", so it clears readAt too.
+      const readAt = status === 'responded' ? existing.readAt ?? new Date().toISOString() : null
+      await supabase.from('inquiries').update({ status, read_at: readAt }).eq('id', id)
+      setInquiries((prev) => prev.map((i) => (i.id === id ? { ...i, status, readAt } : i)))
     },
-    [supabase],
+    [supabase, inquiries],
+  )
+
+  /** Marks a conversation as read the first time the admin opens it. A no-op
+   *  once `readAt` is already set, so re-opening a thread never re-writes it. */
+  const markInquiryRead = useCallback<StoreContextValue['markInquiryRead']>(
+    async (id) => {
+      const existing = inquiries.find((i) => i.id === id)
+      if (!existing || existing.readAt) return
+      const readAt = new Date().toISOString()
+      setInquiries((prev) => prev.map((i) => (i.id === id ? { ...i, readAt } : i)))
+      await supabase.from('inquiries').update({ read_at: readAt }).eq('id', id)
+    },
+    [supabase, inquiries],
   )
 
   const replyToInquiry = useCallback<StoreContextValue['replyToInquiry']>(
@@ -816,14 +841,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       }
       // An investor reply keeps the thread open; an admin reply resolves it.
       const nextStatus = fromAdmin ? 'responded' : 'new'
+      // A fresh investor reply should resurface as unread for the admin, same
+      // as it re-opened the thread by flipping status back to "new".
+      const nextReadAt = fromAdmin ? existing.readAt : null
       const nextReplies = [...existing.replies, reply]
       await supabase
         .from('inquiries')
-        .update({ replies: nextReplies, status: nextStatus })
+        .update({ replies: nextReplies, status: nextStatus, read_at: nextReadAt })
         .eq('id', id)
       setInquiries((prev) =>
         prev.map((i) =>
-          i.id === id ? { ...i, replies: nextReplies, status: nextStatus } : i,
+          i.id === id ? { ...i, replies: nextReplies, status: nextStatus, readAt: nextReadAt } : i,
         ),
       )
       // Deliver the reply to the other side. The server authenticates the
@@ -833,6 +861,49 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     },
     [supabase, inquiries, currentUser],
   )
+
+  /** Admin-only: emails the lead directly (outside the in-app thread) and
+   *  marks the inquiry responded. The server independently re-verifies admin
+   *  auth and derives the recipient from the stored inquiry row. */
+  const sendAdminReply = useCallback<StoreContextValue['sendAdminReply']>(async (id, body) => {
+    try {
+      const res = await fetch(`/api/admin/inquiries/${id}/reply`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: body }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok || !data.ok) {
+        return { ok: false, error: data.error || 'Reply could not be sent.' }
+      }
+      setInquiries((prev) =>
+        prev.map((i) =>
+          i.id === id
+            ? { ...i, replies: data.inquiry.replies, status: data.inquiry.status, readAt: data.inquiry.readAt }
+            : i,
+        ),
+      )
+      return { ok: true }
+    } catch {
+      return { ok: false, error: 'Reply could not be sent. Please try again.' }
+    }
+  }, [])
+
+  /** Admin-only: permanently deletes an inquiry. The server independently
+   *  re-verifies admin auth before deleting; RLS re-checks it again. */
+  const deleteInquiry = useCallback<StoreContextValue['deleteInquiry']>(async (id) => {
+    try {
+      const res = await fetch(`/api/admin/inquiries/${id}`, { method: 'DELETE' })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok || !data.ok) {
+        return { ok: false, error: data.error || 'Unable to delete this message.' }
+      }
+      setInquiries((prev) => prev.filter((i) => i.id !== id))
+      return { ok: true }
+    } catch {
+      return { ok: false, error: 'Unable to delete this message. Please try again.' }
+    }
+  }, [])
 
   const startConversation = useCallback<StoreContextValue['startConversation']>(
     async (lead) => {
@@ -927,7 +998,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       updateOfferStatus,
       updateShowingStatus,
       updateInquiryStatus,
+      markInquiryRead,
       replyToInquiry,
+      sendAdminReply,
+      deleteInquiry,
       startConversation,
       addTestimonial,
       deleteTestimonial,
@@ -959,7 +1033,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       updateOfferStatus,
       updateShowingStatus,
       updateInquiryStatus,
+      markInquiryRead,
       replyToInquiry,
+      sendAdminReply,
+      deleteInquiry,
       startConversation,
       addTestimonial,
       deleteTestimonial,

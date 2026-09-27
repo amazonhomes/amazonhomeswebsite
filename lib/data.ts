@@ -297,6 +297,7 @@ export const seedInquiries: Inquiry[] = [
     message: 'Add me to your buyers list — looking for 5+ unit deals under 300k.',
     status: 'new',
     replies: [],
+    readAt: null,
     createdAt: pastDate(2),
   },
 ]

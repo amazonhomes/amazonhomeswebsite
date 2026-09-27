@@ -114,7 +114,10 @@ export interface Inquiry {
   status: 'new' | 'responded'
   replies: InquiryReply[]
   createdAt: string
-}
+  /** When the admin last opened this conversation. Null = unread. Distinct
+   *  from `status`, which tracks whether the admin has responded. */
+  readAt: string | null
+  }
 
 export interface Testimonial {
   id: string
