@@ -36,7 +36,7 @@ const ROWS_PER_PAGE = 8
  */
 export function pageList(
   current: number,
-  total: number
+  total: number,
 ): (number | '…')[] {
   const c = current + 1
 
@@ -116,16 +116,14 @@ export function NumberedPagination({
           >
             {item}
           </button>
-        )
+        ),
       )}
 
       <Button
         variant="outline"
         size="icon"
         className="size-8 shrink-0"
-        onClick={() =>
-          onPage(Math.min(pageCount - 1, page + 1))
-        }
+        onClick={() => onPage(Math.min(pageCount - 1, page + 1))}
         disabled={page >= pageCount - 1}
         aria-label="Next page"
       >
@@ -186,12 +184,8 @@ export function DataTable<T extends { id: string }>({
 
   emptyLabel?: string
 }) {
-  const [selected, setSelected] = useState<Set<string>>(
-    new Set()
-  )
-
+  const [selected, setSelected] = useState<Set<string>>(new Set())
   const [page, setPage] = useState(0)
-
   const [query, setQuery] = useState('')
 
   const filtered = useMemo(() => {
@@ -201,42 +195,33 @@ export function DataTable<T extends { id: string }>({
       activeTab === 'all' ||
       !filterFor
         ? rows
-        : rows.filter((row) =>
-            filterFor(row, activeTab)
-          )
+        : rows.filter((row) => filterFor(row, activeTab))
 
     if (searchable && query.trim()) {
       const q = query.trim().toLowerCase()
 
       base = base.filter((row) =>
-        searchable(row).toLowerCase().includes(q)
+        searchable(row).toLowerCase().includes(q),
       )
     }
 
     return base
-  }, [
-    rows,
-    tabs,
-    activeTab,
-    filterFor,
-    searchable,
-    query,
-  ])
+  }, [rows, tabs, activeTab, filterFor, searchable, query])
 
   const pageCount = Math.max(
     1,
-    Math.ceil(filtered.length / ROWS_PER_PAGE)
+    Math.ceil(filtered.length / ROWS_PER_PAGE),
   )
 
   const safePage = Math.min(page, pageCount - 1)
 
   const pageRows = filtered.slice(
     safePage * ROWS_PER_PAGE,
-    safePage * ROWS_PER_PAGE + ROWS_PER_PAGE
+    safePage * ROWS_PER_PAGE + ROWS_PER_PAGE,
   )
 
   /**
-   * Reset pagination when filter/search changes.
+   * Reset pagination whenever filter/search changes.
    */
   useEffect(() => {
     setPage(0)
@@ -258,93 +243,51 @@ export function DataTable<T extends { id: string }>({
 
   const allOnPageSelected =
     pageRows.length > 0 &&
-    pageRows.every((row) =>
-      selected.has(row.id)
-    )
+    pageRows.every((row) => selected.has(row.id))
 
   const toggleAllOnPage = () => {
     setSelected((prev) => {
       const next = new Set(prev)
 
       if (allOnPageSelected) {
-        pageRows.forEach((row) =>
-          next.delete(row.id)
-        )
+        pageRows.forEach((row) => next.delete(row.id))
       } else {
-        pageRows.forEach((row) =>
-          next.add(row.id)
-        )
+        pageRows.forEach((row) => next.add(row.id))
       }
 
       return next
     })
   }
 
-  const colSpan =
-    columns.length + (action ? 2 : 1)
+  const colSpan = columns.length + (action ? 2 : 1)
 
   return (
-    <section className="flex w-full min-w-0 flex-col gap-4">
+    <section className="flex min-w-0 flex-col gap-4">
       {/* =====================================================
-          RESPONSIVE TOOLBAR
+          FILTER TABS + SEARCH
       ===================================================== */}
 
       {(tabs || searchable) && (
-        <div className="flex w-full min-w-0 flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex min-w-0 flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
           {/* FILTER TABS */}
-          {tabs &&
-          activeTab &&
-          onTabChange ? (
-            <div className="w-full min-w-0 overflow-x-auto lg:w-auto">
+          {tabs && activeTab && onTabChange ? (
+            <div className="-mx-1 min-w-0 overflow-x-auto px-1 pb-1">
               <Tabs
                 value={activeTab}
                 onValueChange={onTabChange}
-                className="w-full lg:w-auto"
+                className="min-w-0"
               >
-                <TabsList
-                  className="
-                    grid
-                    h-auto
-                    min-w-[390px]
-                    grid-cols-4
-                    bg-muted/70
-                    p-1
-                    sm:min-w-0
-                    lg:flex
-                    lg:w-auto
-                  "
-                >
+                <TabsList className="inline-flex h-9 w-max min-w-max flex-nowrap">
                   {tabs.map((tab) => (
                     <TabsTrigger
                       key={tab.id}
                       value={tab.id}
-                      className="
-                        min-w-0
-                        gap-1.5
-                        whitespace-nowrap
-                        px-2
-                        text-xs
-                        sm:px-3
-                        sm:text-sm
-                      "
+                      className="shrink-0 gap-1.5 whitespace-nowrap px-3"
                     >
-                      <span className="truncate">
-                        {tab.label}
-                      </span>
+                      {tab.label}
 
                       {countFor && (
-                        <span
-                          className="
-                            shrink-0
-                            rounded-full
-                            bg-muted
-                            px-1.5
-                            text-[10px]
-                            font-semibold
-                            text-muted-foreground
-                            sm:text-xs
-                          "
-                        >
+                        <span className="rounded-full bg-muted px-1.5 text-xs font-semibold text-muted-foreground">
                           {countFor(tab.id)}
                         </span>
                       )}
@@ -359,97 +302,89 @@ export function DataTable<T extends { id: string }>({
 
           {/* SEARCH */}
           {searchable && (
-            <div className="relative w-full lg:w-64 lg:shrink-0">
-              <Search
-                className="
-                  pointer-events-none
-                  absolute
-                  left-3
-                  top-1/2
-                  size-4
-                  -translate-y-1/2
-                  text-muted-foreground
-                "
-                aria-hidden
-              />
+            <div className="flex w-full flex-col gap-2 sm:flex-row xl:w-auto xl:justify-end">
+              <div className="relative min-w-0 flex-1 sm:min-w-[220px] xl:w-56 xl:flex-none">
+                <Search
+                  className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+                  aria-hidden
+                />
 
-              <input
-                type="search"
-                value={query}
-                onChange={(e) =>
-                  setQuery(e.target.value)
-                }
-                placeholder={searchPlaceholder}
-                aria-label={searchPlaceholder}
-                className="
-                  h-9
-                  w-full
-                  rounded-md
-                  border
-                  border-border
-                  bg-background
-                  pl-9
-                  pr-3
-                  text-sm
-                  text-foreground
-                  outline-none
-                  transition-colors
-                  placeholder:text-muted-foreground
-                  focus-visible:border-primary
-                  focus-visible:ring-2
-                  focus-visible:ring-primary/30
-                "
-              />
+                <input
+                  type="search"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder={searchPlaceholder}
+                  aria-label={searchPlaceholder}
+                  className="
+                    h-9
+                    w-full
+                    rounded-md
+                    border
+                    border-border
+                    bg-background
+                    pl-9
+                    pr-3
+                    text-sm
+                    text-foreground
+                    outline-none
+                    transition-colors
+                    placeholder:text-muted-foreground
+                    focus-visible:border-primary
+                    focus-visible:ring-2
+                    focus-visible:ring-primary/30
+                  "
+                />
+              </div>
             </div>
           )}
         </div>
       )}
 
       {/* =====================================================
-          TABLE
-          
-          IMPORTANT:
-          We do NOT compress all desktop columns into the
-          phone width. The table scrolls horizontally instead.
+          GLASS TABLE
       ===================================================== */}
 
       <div
         className="
-          w-full
           min-w-0
           overflow-hidden
           rounded-xl
           border
-          border-border
-          bg-card
+          border-black/[0.06]
+          bg-white/55
+          shadow-[0_8px_30px_rgba(0,0,0,0.04)]
+          backdrop-blur-xl
+          backdrop-saturate-150
+          dark:border-white/10
+          dark:bg-white/[0.035]
+          dark:shadow-[0_8px_30px_rgba(0,0,0,0.18)]
         "
       >
+        {/* Horizontal scroll fallback for smaller screens */}
         <div className="w-full overflow-x-auto">
-          <Table className="min-w-max">
-            {/* GLASS HEADER */}
+          <Table className="w-full min-w-[520px] md:min-w-[760px] lg:min-w-[1000px]">
             <TableHeader>
               <TableRow
                 className="
                   border-b
-                  border-border
-                  bg-white/65
-                  backdrop-blur-xl
-                  hover:bg-white/65
-                  dark:bg-white/[0.04]
-                  dark:hover:bg-white/[0.04]
+                  border-black/[0.06]
+                  bg-white/35
+                  backdrop-blur-2xl
+                  backdrop-saturate-150
+                  hover:bg-white/35
+                  dark:border-white/10
+                  dark:bg-white/[0.06]
+                  dark:hover:bg-white/[0.06]
                 "
               >
-                <TableHead className="w-10 min-w-10">
+                {/* Hide checkbox on very small screens */}
+                <TableHead className="hidden w-10 sm:table-cell">
                   <input
                     type="checkbox"
                     aria-label="Select all on page"
                     checked={allOnPageSelected}
                     onChange={toggleAllOnPage}
-                    className="
-                      size-4
-                      cursor-pointer
-                      accent-primary
-                    "
+                    className="size-4 cursor-pointer accent-primary"
                   />
                 </TableHead>
 
@@ -463,19 +398,14 @@ export function DataTable<T extends { id: string }>({
                           ? 'text-right'
                           : ''
                       }
-                      ${
-                        column.headClassName ??
-                        ''
-                      }
+                      ${column.headClassName ?? ''}
                     `}
                   >
                     {column.header}
                   </TableHead>
                 ))}
 
-                {action && (
-                  <TableHead className="w-10 min-w-10" />
-                )}
+                {action && <TableHead className="w-10" />}
               </TableRow>
             </TableHeader>
 
@@ -484,12 +414,7 @@ export function DataTable<T extends { id: string }>({
                 <TableRow>
                   <TableCell
                     colSpan={colSpan}
-                    className="
-                      h-24
-                      min-w-[280px]
-                      text-center
-                      text-muted-foreground
-                    "
+                    className="h-24 text-center text-muted-foreground"
                   >
                     {query.trim()
                       ? 'No results match your search.'
@@ -506,26 +431,24 @@ export function DataTable<T extends { id: string }>({
                         : undefined
                     }
                     className="
+                      border-black/[0.05]
+                      bg-transparent
                       transition-colors
-                      hover:bg-muted/30
+                      hover:bg-black/[0.025]
+                      data-[state=selected]:bg-primary/[0.06]
+                      dark:border-white/[0.07]
+                      dark:hover:bg-white/[0.04]
+                      dark:data-[state=selected]:bg-primary/10
                     "
                   >
-                    {/* SELECT */}
-                    <TableCell className="w-10 min-w-10">
+                    {/* Hide checkbox on very small screens */}
+                    <TableCell className="hidden sm:table-cell">
                       <input
                         type="checkbox"
                         aria-label={rowLabel(row)}
-                        checked={selected.has(
-                          row.id
-                        )}
-                        onChange={() =>
-                          toggle(row.id)
-                        }
-                        className="
-                          size-4
-                          cursor-pointer
-                          accent-primary
-                        "
+                        checked={selected.has(row.id)}
+                        onChange={() => toggle(row.id)}
+                        className="size-4 cursor-pointer accent-primary"
                       />
                     </TableCell>
 
@@ -536,15 +459,11 @@ export function DataTable<T extends { id: string }>({
                         className={`
                           whitespace-nowrap
                           ${
-                            column.align ===
-                            'right'
+                            column.align === 'right'
                               ? 'text-right'
                               : ''
                           }
-                          ${
-                            column.cellClassName ??
-                            ''
-                          }
+                          ${column.cellClassName ?? ''}
                         `}
                       >
                         {column.cell(row)}
@@ -553,7 +472,7 @@ export function DataTable<T extends { id: string }>({
 
                     {/* ACTIONS */}
                     {action && (
-                      <TableCell className="w-10 min-w-10">
+                      <TableCell className="sticky right-0 bg-inherit">
                         {action(row)}
                       </TableCell>
                     )}
@@ -566,35 +485,19 @@ export function DataTable<T extends { id: string }>({
       </div>
 
       {/* =====================================================
-          RESPONSIVE FOOTER
+          RESPONSIVE PAGINATION
       ===================================================== */}
 
-      <div
-        className="
-          flex
-          w-full
-          min-w-0
-          flex-col
-          gap-3
-          px-1
-          sm:flex-row
-          sm:items-center
-          sm:justify-between
-        "
-      >
-        <p className="text-sm text-muted-foreground">
-          Showing {pageRows.length} of{' '}
-          {filtered.length}
+      <div className="flex flex-col gap-3 px-1 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-center text-xs text-muted-foreground sm:text-left sm:text-sm">
+          Showing {pageRows.length} of {filtered.length}
 
           {selected.size > 0 && (
-            <span>
-              {' '}
-              · {selected.size} selected
-            </span>
+            <span> · {selected.size} selected</span>
           )}
         </p>
 
-        <div className="max-w-full self-end overflow-x-auto sm:self-auto">
+        <div className="flex max-w-full justify-center overflow-x-auto sm:justify-end">
           <NumberedPagination
             page={safePage}
             pageCount={pageCount}
