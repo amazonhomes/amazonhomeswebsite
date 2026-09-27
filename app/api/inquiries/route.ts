@@ -1,6 +1,8 @@
-import { NextResponse } from 'next/server'
+import { NextResponse, after } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { notifyTeamOfLead } from '@/lib/lead-email'
 import { checkRateLimit, clientIp } from '@/lib/rate-limit'
+import { validatePhoneField } from '@/lib/phone'
 
 /**
  * Inquiry / contact-form submission endpoint. This is the most abuse-prone
@@ -43,6 +45,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: 'Please complete all required fields.' }, { status: 400 })
   }
 
+  // Phone is optional on inquiries, but if provided it must be valid.
+  const phoneCheck = validatePhoneField(body.phone, { required: false })
+  if (!phoneCheck.ok) {
+    return NextResponse.json({ ok: false, error: phoneCheck.error }, { status: 400 })
+  }
+
   // property_id is optional (a general contact submission has none).
   const propertyId = typeof body.propertyId === 'string' && body.propertyId ? body.propertyId : null
 
@@ -50,9 +58,10 @@ export async function POST(req: Request) {
   const { error } = await supabase.from('inquiries').insert({
     property_id: propertyId,
     name,
-    company: str(body.company, MAX.text) || null,
+    // company / phone are optional in the form but NOT NULL in the schema.
+    company: str(body.company, MAX.text) || '',
     email,
-    phone: str(body.phone, MAX.phone) || null,
+    phone: phoneCheck.value || '',
     message,
   })
 
@@ -60,6 +69,19 @@ export async function POST(req: Request) {
     console.log('[v0] Inquiry insert failed:', error.message)
     return NextResponse.json({ ok: false, error: 'Could not send your message.' }, { status: 400 })
   }
+
+  const origin = new URL(req.url).origin
+  after(() =>
+    notifyTeamOfLead(supabase, origin, {
+      type: 'inquiry',
+      name,
+      email,
+      phone: phoneCheck.value || null,
+      company: str(body.company, MAX.text) || null,
+      propertyId,
+      message,
+    }),
+  )
 
   return NextResponse.json({ ok: true })
 }

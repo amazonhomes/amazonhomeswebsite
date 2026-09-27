@@ -26,7 +26,6 @@ import { checkRateLimit, clientIp } from '@/lib/rate-limit'
  *   LEAD_NOTIFICATION_FROM  – optional verified "from" address
  */
 
-const LEAD_TYPES = new Set(['offer', 'showing', 'inquiry'])
 const MAX_SUBJECT = 200
 const MAX_SUMMARY = 5000
 
@@ -157,23 +156,8 @@ export async function POST(req: Request) {
     )
   }
 
-  // ── Lead flow: public, but only ever delivered to the team's own inbox ─────
-  if (!LEAD_TYPES.has(type)) {
-    return NextResponse.json({ ok: false, error: 'Invalid type' }, { status: 400 })
-  }
-  const summary = typeof payload.summary === 'string' ? payload.summary.slice(0, MAX_SUMMARY) : ''
-  if (!summary) {
-    return NextResponse.json({ ok: false, error: 'Missing fields' }, { status: 400 })
-  }
-  const subject =
-    typeof payload.subject === 'string' && payload.subject
-      ? payload.subject.slice(0, MAX_SUBJECT)
-      : `New ${type}`
-
-  const teamInbox = process.env.LEAD_NOTIFICATION_EMAIL
-  const result = await sendEmail({ to: teamInbox ?? '', subject, text: summary })
-  return NextResponse.json(
-    { ok: result.ok, delivered: result.delivered },
-    { status: result.status ?? 200 },
-  )
+  // Lead emails are sent server-side by /api/offers, /api/showings and
+  // /api/inquiries only after the lead is persisted, so this endpoint no longer
+  // accepts client-triggered lead notifications (prevents fake-lead spam).
+  return NextResponse.json({ ok: false, error: 'Invalid type' }, { status: 400 })
 }

@@ -1,5 +1,6 @@
-import { NextResponse } from 'next/server'
+import { NextResponse, after } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { notifyTeamOfLead } from '@/lib/lead-email'
 import { checkRateLimit, clientIp } from '@/lib/rate-limit'
 import { validatePhoneField } from '@/lib/phone'
 
@@ -47,9 +48,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: phoneCheck.error }, { status: 400 })
   }
 
-  const userId = typeof body.userId === 'string' ? body.userId : null
 
   const supabase = await createClient()
+   // Attribution comes from the authenticated session, never the request body.
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  const userId = user?.id ?? null
   const { error } = await supabase.from('showings').insert({
     property_id: propertyId,
     user_id: userId,
@@ -65,6 +70,19 @@ export async function POST(req: Request) {
     console.log('[v0] Showing insert failed:', error.message)
     return NextResponse.json({ ok: false, error: 'Could not submit your request.' }, { status: 400 })
   }
+  const origin = new URL(req.url).origin
+  after(() =>
+    notifyTeamOfLead(supabase, origin, {
+      type: 'showing',
+      name,
+      email,
+      phone: phoneCheck.value,
+      company: str(body.company, MAX.text) || null,
+      propertyId,
+      preferredTime: str(body.preferredTime, MAX.text) || null,
+      message: str(body.message, MAX.message) || null,
+    }),
+  )
 
   return NextResponse.json({ ok: true })
 }

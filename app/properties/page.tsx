@@ -51,9 +51,24 @@ export default function PropertiesPage() {
   const [query, setQuery] = useState('')
   const [type, setType] = useState<string>('all')
   const [status, setStatus] = useState<string>('all')
+  const [neighborhood, setNeighborhood] = useState<string>('all')
+  const [zip, setZip] = useState<string>('all')
   const [minPrice, setMinPrice] = useState('')
   const [maxPrice, setMaxPrice] = useState('')
   const [sort, setSort] = useState('newest')
+
+  const neighborhoods = useMemo(
+    () =>
+      Array.from(new Set(properties.map((p) => p.neighborhood).filter(Boolean))).sort(
+        (a, b) => a.localeCompare(b),
+      ),
+    [properties],
+  )
+
+  const zips = useMemo(
+    () => Array.from(new Set(properties.map((p) => p.zip).filter(Boolean))).sort(),
+    [properties],
+  )
 
   const filtered = useMemo(() => {
     let list = properties.filter((p) => p.status !== 'archived')
@@ -68,6 +83,8 @@ export default function PropertiesPage() {
     }
     if (type !== 'all') list = list.filter((p) => p.type === type)
     if (status !== 'all') list = list.filter((p) => p.status === status)
+      if (neighborhood !== 'all') list = list.filter((p) => p.neighborhood === neighborhood)
+    if (zip !== 'all') list = list.filter((p) => p.zip === zip)
 
     const min = Number(minPrice.replace(/[^0-9.]/g, ''))
     const max = Number(maxPrice.replace(/[^0-9.]/g, ''))
@@ -93,12 +110,14 @@ export default function PropertiesPage() {
         )
     }
     return list
-  }, [properties, query, type, status, minPrice, maxPrice, sort])
+  }, [properties, query, type, status, neighborhood, zip, minPrice, maxPrice, sort])  
 
   const activeFilterCount =
     (query.trim() !== '' ? 1 : 0) +
     (type !== 'all' ? 1 : 0) +
     (status !== 'all' ? 1 : 0) +
+    (neighborhood !== 'all' ? 1 : 0) +
+    (zip !== 'all' ? 1 : 0) +
     (minPrice !== '' ? 1 : 0) +
     (maxPrice !== '' ? 1 : 0)
 
@@ -108,6 +127,8 @@ export default function PropertiesPage() {
     setQuery('')
     setType('all')
     setStatus('all')
+    setNeighborhood('all')
+    setZip('all')
     setMinPrice('')
     setMaxPrice('')
     setSort('newest')
@@ -144,6 +165,59 @@ export default function PropertiesPage() {
 
           {/* Dropdowns */}
           <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="flex flex-col gap-1.5">
+              <label
+              htmlFor="filter-neighborhood"
+                className="text-xs font-medium text-muted-foreground"
+              >
+                Neighborhood
+              </label>
+              <Select
+                value={neighborhood}
+                onValueChange={(v) => setNeighborhood(v ?? 'all')}
+              >
+                <SelectTrigger id="filter-neighborhood" className="h-11 w-full">
+                  <SelectValue placeholder="All Neighborhoods">
+                    {(value: string) =>
+                      value === 'all' ? 'All Neighborhoods' : value
+                    }
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Neighborhoods</SelectItem>
+                  {neighborhoods.map((n) => (
+                    <SelectItem key={n} value={n}>
+                      {n}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label
+                htmlFor="filter-zip"
+                className="text-xs font-medium text-muted-foreground"
+              >
+                ZIP Code
+              </label>
+              <Select value={zip} onValueChange={(v) => setZip(v ?? 'all')}>
+                <SelectTrigger id="filter-zip" className="h-11 w-full">
+                  <SelectValue placeholder="All ZIP Codes">
+                    {(value: string) => (value === 'all' ? 'All ZIP Codes' : value)}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All ZIP Codes</SelectItem>
+                  {zips.map((z) => (
+                    <SelectItem key={z} value={z}>
+                      {z}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="flex flex-col gap-1.5">
               <label
                 htmlFor="filter-type"
@@ -194,7 +268,7 @@ export default function PropertiesPage() {
               </Select>
             </div>
 
-            <div className="flex flex-col gap-1.5 sm:col-span-2 lg:col-span-1">
+            <div className="flex flex-col gap-1.5">
               <label
                 htmlFor="filter-sort"
                 className="text-xs font-medium text-muted-foreground"

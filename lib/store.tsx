@@ -327,20 +327,6 @@ async function postLead(
   }
 }
 
-function notifyLead(
-  type: string,
-  subject: string,
-  summary: string,
-  replyTo?: string,
-  to?: string,
-) {
-  void fetch('/api/notify', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ type, subject, summary, replyTo, to }),
-  }).catch(() => {})
-}
-
 /** Trigger a reply-notification email. The server authenticates the session and
  *  derives the recipient from the inquiry record itself, so no recipient,
  *  subject, or body is trusted from the client. Best-effort; never throws. */
@@ -667,12 +653,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         .then(({ data }) => {
           if (data) setOffers(data.map(mapOffer))
         })
-      notifyLead(
-        'offer',
-        `New offer · ${input.name}`,
-        `${input.name} (${input.email}) offered $${input.amount.toLocaleString()}.` +
-          (input.notes ? ` Notes: ${input.notes}` : ''),
-      )
       // The offers INSERT trigger bumps the public property_offer_counts
       // aggregate; re-read just this property's row so the activity badge
       // reflects the new offer without exposing any private offer data.
@@ -696,13 +676,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     async (input) => {
       const res = await postLead('/api/showings', input)
       if (!res.ok) return res
-      notifyLead(
-        'showing',
-        `New showing request · ${input.name}`,
-        `${input.name} (${input.email}) requested a showing. Preferred: ${
-          input.preferredTime || 'not specified'
-        }.` + (input.message ? ` Message: ${input.message}` : ''),
-      )
       return { ok: true }
     },
     [],
@@ -712,11 +685,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     async (input) => {
       const res = await postLead('/api/inquiries', input)
       if (!res.ok) return res
-      notifyLead(
-        'inquiry',
-        `New inquiry · ${input.name}`,
-        `${input.name} (${input.email}) wrote: ${input.message}`,
-      )
       return { ok: true }
     },
     [],

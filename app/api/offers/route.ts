@@ -1,5 +1,6 @@
-import { NextResponse } from 'next/server'
+import { NextResponse, after } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { notifyTeamOfLead } from '@/lib/lead-email'
 import { checkRateLimit, clientIp } from '@/lib/rate-limit'
 import { validatePhoneField } from '@/lib/phone'
 
@@ -105,6 +106,19 @@ const phoneCheck = validatePhoneField(body.phone, { required: true })
     console.log('[v0] Offer insert failed:', error.message)
     return NextResponse.json({ ok: false, error: 'Could not submit your offer.' }, { status: 400 })
   }
+  const origin = new URL(req.url).origin
+  after(() =>
+    notifyTeamOfLead(supabase, origin, {
+      type: 'offer',
+      name,
+      email,
+      phone: phoneCheck.value || null,
+      company: str(body.company, MAX.text) || null,
+      propertyId,
+      amount: Math.round(amountRaw),
+      message: str(body.notes, MAX.notes) || null,
+    }),
+  )
 
   return NextResponse.json({ ok: true })
 }
