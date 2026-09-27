@@ -39,7 +39,7 @@ export function BadgedPropertyCard({ property }: { property: Property }) {
       {(isHot || isNew) && (
         <div className="absolute -top-3 left-3 right-3 z-20 flex flex-wrap items-center gap-1.5">
           {isNew && (
-            <span className="inline-flex items-center gap-1.5 rounded-md bg-primary px-2.5 py-1.5 text-xs font-semibold text-white shadow-md">
+            <span className="inline-flex items-center gap-1.5 rounded-md bg-green-500  px-2.5 py-1.5 text-xs font-semibold text-white shadow-md">
               <HousePlus className="size-3.5" />
               New Listing
             </span>
@@ -50,7 +50,6 @@ export function BadgedPropertyCard({ property }: { property: Property }) {
               Hot · {count} {count === 1 ? "offer" : "offers"}
             </span>
           )}
-          
         </div>
       )}
       <PropertyCard property={property} />

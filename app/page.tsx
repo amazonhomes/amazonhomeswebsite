@@ -160,7 +160,7 @@ export default function HomePage() {
         />
         <div className="absolute inset-0  from-primary via-primary/85 to-primary/60" />
         <div className="relative mx-auto max-w-6xl px-4 py-20 md:py-28">
-          <span className="inline-flex items-center gap-2 rounded-sm bg-primary px-3 py-1 text-xs font-semibold uppercase tracking-widest text-white">
+          <span className="inline-flex items-center gap-2 rounded-sm bg-primary px-3 py-1 dark:bg-black text-xs font-semibold uppercase tracking-widest text-white">
             <MapPin className="size-3.5" strokeWidth={2.5} />
             Detroit, Michigan
           </span>

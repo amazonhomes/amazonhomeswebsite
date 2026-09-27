@@ -344,9 +344,13 @@ function AdminDashboard() {
   }
   const skipTourForNow = () => setTourOpen(false)
   const startTour = () => {
-    tourAutoStarted.current = true
+  tourAutoStarted.current = true
+  setTourOpen(false)
+
+  window.setTimeout(() => {
     setTourOpen(true)
-  }
+  }, 100)
+}
 
   return (
     <div className="flex min-h-dvh bg-white dark:bg-[#242424]">
