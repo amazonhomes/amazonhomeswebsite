@@ -434,60 +434,18 @@ function AdminDashboard() {
           )}
 
           {section === 'properties' && (
-            <Panel
-              title="Properties"
-              subtitle="Add, edit, or retire listings."
-              action={
-                <Button onClick={() => setCreating(true)}>
-                  <Plus className="size-4" /> Add property
-                </Button>
-              }
-            >
-              <div className="overflow-hidden rounded-xl border border-border bg-card">
-                <div className="divide-y divide-border">
-                  {properties.map((p) => (
-                    <div
-                      key={p.id}
-                      className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"
-                    >
-                      <div className="flex items-center gap-3">
-                        <img
-                          src={p.photos[0]?.url || '/placeholder.svg'}
-                          alt=""
-                          className="size-14 rounded-md object-cover"
-                        />
-                        <div>
-                          <p className="font-medium text-foreground">{p.address}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {p.neighborhood} · {formatCurrency(p.price)} · {p.type}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <StatusBadge status={p.status} />
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          onClick={() => setEditing(p)}
-                          aria-label={`Edit ${p.address}`}
-                        >
-                          <Pencil className="size-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          onClick={() => confirmDeleteProperty(p.id)}
-                          aria-label={`Delete ${p.address}`}
-                        >
-                          <Trash2 className="size-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </Panel>
-          )}
+  <Panel
+    title="Properties"
+    subtitle="Add, edit, or retire listings."
+  >
+    <PropertiesTable
+      properties={properties}
+      onEdit={setEditing}
+      onDelete={confirmDeleteProperty}
+      onCreate={() => setCreating(true)}
+    />
+  </Panel>
+)}
 
           {section === 'offers' && (
             <Panel title="Offers" subtitle="Review and respond to investor offers.">
