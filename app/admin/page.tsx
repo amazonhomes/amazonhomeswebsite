@@ -134,7 +134,13 @@ function greeting(): string {
   if (h < 18) return 'Good afternoon'
   return 'Good evening'
 }
+function greetingEmoji(): string {
+  const h = new Date().getHours()
 
+  if (h < 12) return '☀️'
+  if (h < 18) return '👋'
+  return '🌙'
+}
 /** Ordered onboarding steps for admins/VAs. Each `target` maps to a `data-tour`
  *  attribute rendered in the persistent sidebar / mobile nav, so the tour works
  *  from any section without route changes; targetless steps render centered. */
@@ -343,7 +349,7 @@ function AdminDashboard() {
   }
 
   return (
-    <div className="flex min-h-dvh bg-secondary">
+    <div className="flex min-h-dvh bg-white dark:bg-[#242424]">
       <AdminSidebar
         active={section}
         user={currentUser}
@@ -374,7 +380,7 @@ function AdminDashboard() {
                 <div>
                   <p className="text-sm text-muted-foreground">{today}</p>
                   <h1 className="mt-1 font-display text-3xl font-bold tracking-tight text-foreground text-balance">
-                    {greeting()}, {firstName}.
+                    {greeting()}, {firstName}. {greetingEmoji()}
                   </h1>
                   <p className="mt-1 text-muted-foreground">
                     Here is what is moving across your marketplace.
