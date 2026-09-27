@@ -11,6 +11,27 @@ import { createClient } from '@/lib/supabase/client'
 
 type Mode = 'loading' | 'enroll' | 'challenge' | 'done'
 
+function describeMfaError(err: { status?: number; code?: string } | null | undefined): string {
+  if (err?.status === 429 || err?.code === 'over_request_rate_limit') {
+    return 'Too many attempts. Please wait a minute before trying again.'
+  }
+  switch (err?.code) {
+    case 'mfa_verification_failed':
+      return 'That code was not correct. Check your authenticator app and try again.'
+    case 'mfa_challenge_expired':
+      return 'The verification request expired. Please enter your current code again.'
+    case 'mfa_ip_address_mismatch':
+      return 'Your network changed during verification. Please enter your current code again.'
+    case 'session_not_found':
+    case 'session_expired':
+    case 'refresh_token_not_found':
+    case 'refresh_token_already_used':
+      return 'Your session has expired. Please sign in again.'
+    default:
+      return 'We could not verify your code right now. Please try again.'
+  }
+}
+
 /**
  * Two-factor gate for admin/VA accounts.
  *
@@ -27,12 +48,13 @@ export default function AdminMfaPage() {
   const supabase = useRef(createClient()).current
   const [mode, setMode] = useState<Mode>('loading')
   const [factorId, setFactorId] = useState<string | null>(null)
-  const [challengeId, setChallengeId] = useState<string | null>(null)
   const [qrCode, setQrCode] = useState<string | null>(null)
   const [secret, setSecret] = useState<string | null>(null)
   const [code, setCode] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const inFlightRef = useRef(false)
+  const attemptRef = useRef(0)
 
   // Decide whether the admin needs to enroll a new factor or challenge an
   // existing one. Clean up any half-finished (unverified) TOTP factors first so
@@ -55,16 +77,10 @@ export default function AdminMfaPage() {
     const verified = totp.find((f) => f.status === 'verified')
 
     if (verified) {
-      // Existing factor → challenge it.
+      // Existing factor → challenge it. The challenge itself is created per
+      // attempt in handleVerify so it can never go stale while the admin is
+      // fetching a code.
       setFactorId(verified.id)
-      const { data: ch, error: chErr } = await supabase.auth.mfa.challenge({
-        factorId: verified.id,
-      })
-      if (chErr || !ch) {
-        setError('Could not start a verification challenge. Please try again.')
-      } else {
-        setChallengeId(ch.id)
-      }
       setMode('challenge')
       return
     }
@@ -97,33 +113,54 @@ export default function AdminMfaPage() {
 
   async function handleVerify(e: React.FormEvent) {
     e.preventDefault()
-    if (!factorId) return
+    if (!factorId || inFlightRef.current) return
+
+    const trimmed = code.trim()
+    if (!/^\d{6}$/.test(trimmed)) {
+      setError('Enter the 6-digit code from your authenticator app.')
+      return
+    }
+
+    inFlightRef.current = true
+    const attempt = ++attemptRef.current
     setSubmitting(true)
     setError(null)
 
-    // For enrollment we must create a challenge on the spot; for the challenge
-    // flow we already have one from bootstrap().
-    let activeChallengeId = challengeId
-    if (mode === 'enroll' || !activeChallengeId) {
-      const { data: ch, error: chErr } = await supabase.auth.mfa.challenge({ factorId })
-      if (chErr || !ch) {
-        setSubmitting(false)
-        setError('Could not verify the code. Please try again.')
-        return
-      }
-      activeChallengeId = ch.id
+    const finishWithError = (message: string) => {
+      if (attempt !== attemptRef.current) return
+      inFlightRef.current = false
+      setSubmitting(false)
+      setError(message)
+    }
+
+    // A fresh challenge for every attempt: a challenge created at page load
+    // expires server-side, and reusing it made every later (correct) code fail.
+    const { data: ch, error: chErr } = await supabase.auth.mfa.challenge({ factorId })
+    if (chErr || !ch) {
+      console.warn('[mfa] challenge failed', { status: chErr?.status, code: chErr?.code })
+      finishWithError(describeMfaError(chErr))
+      return
     }
 
     const { error: verifyErr } = await supabase.auth.mfa.verify({
       factorId,
-      challengeId: activeChallengeId,
-      code: code.trim(),
+      challengeId: ch.id,
+      code: trimmed,
     })
 
     if (verifyErr) {
-      setSubmitting(false)
-      setError('That code was not correct. Check your authenticator app and try again.')
-      setCode('')
+      console.warn('[mfa] verify failed', { status: verifyErr.status, code: verifyErr.code })
+      finishWithError(describeMfaError(verifyErr))
+      if (attempt === attemptRef.current) setCode('')
+      return
+    }
+
+    // Trust the session, not a client flag: only continue once Supabase reports
+    // the session has actually reached aal2.
+    const { data: aal, error: aalErr } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+    if (aalErr || aal?.currentLevel !== 'aal2') {
+      console.warn('[mfa] session did not reach aal2', { level: aal?.currentLevel, code: aalErr?.code })
+      finishWithError('Verification could not be confirmed. Please try again.')
       return
     }
 
