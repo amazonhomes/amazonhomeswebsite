@@ -70,32 +70,30 @@ export async function requireAdmin(
 }
 
 /**
- * Perform REAL Supabase re-authentication of the current admin's password.
+ * Verify the current admin's password WITHOUT creating an auth session.
  *
- * Uses a throwaway client with `persistSession: false`, so verifying the
- * password never mutates the caller's real session cookies (no accidental
- * downgrade to aal1, no token churn). The password is only ever passed to
- * Supabase for verification — never stored, logged, or echoed back.
+ * Calling `signInWithPassword` here would mint a second session for the same
+ * user on every privileged action; discarding it afterwards still churns the
+ * user's session/refresh-token state and can invalidate the admin's live
+ * browser session (observed as a logout after delete and intermittent
+ * "You must be signed in." on the next action). Instead we compare against the
+ * stored bcrypt hash via the service-role-only `verify_user_password` RPC.
  *
- * Returns true only on a successful credential check. Any error (wrong
- * password, rate limit, network) returns false; callers translate that into a
- * generic "Your password could not be verified." response.
+ * The password is never stored, logged, or echoed back. Any error returns
+ * false; callers respond with a generic "Your password could not be verified."
  */
-export async function verifyAdminPassword(email: string, password: string): Promise<boolean> {
-  if (!password || typeof password !== "string") return false
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL
-  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? process.env.SUPABASE_ANON_KEY
-  if (!url || !anon) return false
-
-  const client = createPlainClient(url, anon, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  })
-  const { data, error } = await client.auth.signInWithPassword({ email, password })
-  // Immediately discard any session the verification produced.
-  if (data?.session) {
-    await client.auth.signOut().catch(() => {})
+export async function verifyAdminPassword(userId: string, password: string): Promise<boolean> {
+  if (!userId || !password || typeof password !== "string") return false
+  try {
+    const admin = createAdminClient()
+    const { data, error } = await admin.rpc("verify_user_password", {
+      p_user_id: userId,
+      p_password: password,
+    })
+    return !error && data === true
+  } catch {
+    return false
   }
-  return !error && !!data?.user
 }
 
 /**

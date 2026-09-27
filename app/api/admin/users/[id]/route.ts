@@ -111,7 +111,7 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
       { status: 429 },
     )
   }
-  const reauthed = await verifyAdminPassword(ctx.email, String(body.password ?? ""))
+  const reauthed = await verifyAdminPassword(ctx.userId, String(body.password ?? ""))
   if (!reauthed) {
     return NextResponse.json({ error: "Your password could not be verified." }, { status: 403 })
   }

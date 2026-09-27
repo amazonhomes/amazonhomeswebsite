@@ -73,7 +73,7 @@ export async function POST(req: Request) {
         { status: 429 },
       )
     }
-    const ok = await verifyAdminPassword(ctx.email, String(body.password ?? ""))
+    const ok = await verifyAdminPassword(ctx.userId, String(body.password ?? ""))
     if (!ok) {
       await writeAudit({
         actorId: ctx.userId,
