@@ -121,6 +121,21 @@ export async function sendAccountRecoveryEmail(email: string): Promise<void> {
   }
 }
 
+/**
+ * Redirect target for Supabase Admin invitations (`inviteUserByEmail`).
+ *
+ * Invite links are verified by Supabase and return with implicit-flow tokens in
+ * the URL fragment (`#access_token=…&type=invite`), which a server route can't
+ * read. They reuse the exact allow-listed `/auth/callback` URL (or v0 dev proxy,
+ * which Supabase only matches exactly — adding a query string makes it fall
+ * back to the Site URL). The callback sees no `code` and forwards to
+ * `/auth/setup-account`; the browser carries the fragment across that redirect
+ * so the setup page can establish the session client-side.
+ */
+export function getAccountSetupRedirectUrl(): string {
+  return getAuthCallbackUrl()
+}
+
 function appendNext(base: string, next: string): string {
   try {
     const u = new URL(base)

@@ -4,8 +4,7 @@ import {
   requireAdmin,
   verifyAdminPassword,
   writeAudit,
-  sendAccountRecoveryEmail,
-  generateTempPassword,
+  getAccountSetupRedirectUrl,
   isAllowedRole,
   normalizeEmail,
   normalizePhone,
@@ -22,9 +21,9 @@ import { checkRateLimit } from "@/lib/rate-limit"
  *   - Creating an ADMIN additionally requires fresh re-authentication of the
  *     CURRENT admin's own password.
  *
- * The new account is created with email already confirmed and a throwaway
- * random password; the user then sets their own password via the existing
- * recovery flow. The admin never chooses or learns it. Role is constrained to
+ * The account is created via Supabase's Admin invitation (`inviteUserByEmail`),
+ * which sends the "Invite user" email. The user sets their own password at
+ * /auth/setup-account; the admin never chooses or learns it. Role is constrained to
  * the closed {investor, admin} set — arbitrary role strings are rejected.
  */
 export async function POST(req: Request) {
@@ -88,23 +87,25 @@ export async function POST(req: Request) {
 
   const admin = createAdminClient()
 
-  // Create the auth user (email pre-confirmed, throwaway password).
-  const { data: created, error: createErr } = await admin.auth.admin.createUser({
-    email,
-    password: generateTempPassword(),
-    email_confirm: true,
-    user_metadata: { name, phone, company },
+  // Invite the user through Supabase's Admin invitation flow. This creates the
+  // auth user AND sends the "Invite user" email template ({{ .ConfirmationURL }}).
+  // The user has no password until they complete /auth/setup-account.
+  const { data: created, error: createErr } = await admin.auth.admin.inviteUserByEmail(email, {
+    data: { name, phone, company },
+    redirectTo: getAccountSetupRedirectUrl(),
   })
 
   if (createErr || !created?.user) {
-    // GoTrue enforces unique emails; surface a friendly, non-enumerating-ish
-    // message for the admin operator (who is already trusted) without leaking
-    // internals.
-    const msg = /already|registered|exists/i.test(createErr?.message ?? "")
-      ? "An account with this email already exists."
-      : "Unable to complete this action."
-    console.log("[v0] admin create user failed:", createErr?.message)
-    return NextResponse.json({ error: msg }, { status: 400 })
+    // GoTrue enforces unique emails and refuses to invite an existing address,
+    // so no duplicate user is created and no email is sent to that account.
+    const exists =
+      createErr?.code === "email_exists" ||
+      /already|registered|exists/i.test(createErr?.message ?? "")
+    console.log("[v0] admin invite user failed:", createErr?.code ?? createErr?.status)
+    return NextResponse.json(
+      { error: exists ? "A user with this email already exists." : "Unable to send the invitation." },
+      { status: exists ? 409 : 400 },
+    )
   }
 
   const userId = created.user.id
@@ -119,14 +120,12 @@ export async function POST(req: Request) {
 
   if (profileErr) {
     // Roll back the auth user so we don't leave an account with no usable
-    // profile/role behind.
+    // profile/role behind. Deleting the user also invalidates the invite link
+    // that was just emailed, so it can't be used to reach a half-built account.
     await admin.auth.admin.deleteUser(userId).catch(() => {})
-    console.log("[v0] admin profile upsert failed:", profileErr.message)
+    console.log("[v0] admin profile upsert failed:", profileErr.code)
     return NextResponse.json({ error: "Unable to complete this action." }, { status: 400 })
   }
-
-  // Let the new user set their own password through the existing recovery flow.
-  await sendAccountRecoveryEmail(email)
 
   await writeAudit({
     actorId: ctx.userId,
