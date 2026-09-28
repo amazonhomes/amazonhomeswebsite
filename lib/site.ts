@@ -7,9 +7,22 @@
  * 3. VERCEL_URL — the per-deployment URL (preview deployments).
  * 4. localhost — local development fallback.
  */
+/** Canonical production host. The apex domain 308-redirects here. */
+export const PRODUCTION_SITE_URL = "https://www.amazonhomes.com"
+
+function isProduction(): boolean {
+  return (
+    process.env.VERCEL_ENV === "production" || process.env.NEXT_PUBLIC_VERCEL_ENV === "production"
+  )
+}
+
 export function getSiteUrl(): string {
   const explicit = process.env.NEXT_PUBLIC_SITE_URL
   if (explicit) return explicit.replace(/\/$/, "")
+
+  // VERCEL_PROJECT_PRODUCTION_URL can resolve to the apex or a *.vercel.app
+  // alias; auth redirects must use the one canonical www host.
+  if (isProduction()) return PRODUCTION_SITE_URL
 
   const prod = process.env.VERCEL_PROJECT_PRODUCTION_URL
   if (prod) return `https://${prod}`
@@ -55,6 +68,12 @@ export function getAuthCallbackUrl(): string {
 export function getClientAuthCallbackUrl(): string {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "")
   if (siteUrl) return `${siteUrl}/auth/callback`
+
+  // NEXT_PUBLIC_SITE_URL is not set on the Vercel project, so without this the
+  // production sign-up flow fell through to the protected dev redirect proxy.
+  if (process.env.NEXT_PUBLIC_VERCEL_ENV === "production") {
+    return `${PRODUCTION_SITE_URL}/auth/callback`
+  }
 
   const devProxy = process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL
   if (devProxy) return devProxy
