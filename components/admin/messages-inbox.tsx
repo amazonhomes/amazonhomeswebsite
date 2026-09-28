@@ -1,7 +1,19 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { AlertCircle, ArrowLeft, Building2, Check, Mail, Phone, Reply, Send, Trash2 } from 'lucide-react'
+import {
+  AlertCircle,
+  ArrowLeft,
+  Building2,
+  Check,
+  Mail,
+  Phone,
+  Reply,
+  Send,
+  Trash2,
+} from 'lucide-react'
+
+import { Loader } from '@/components/loader'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { useConfirm } from '@/components/confirm-dialog'
@@ -44,42 +56,95 @@ export function MessagesInbox({
 }: {
   inquiries: Inquiry[]
   propertyMap: Record<string, Property>
-  onUpdateStatus: (id: string, status: Inquiry['status']) => void
+  onUpdateStatus: (
+    id: string,
+    status: Inquiry['status'],
+  ) => void
   onMarkRead: (id: string) => void
-  onSendReply: (id: string, body: string) => Promise<{ ok: boolean; error?: string }>
-  onDelete: (id: string) => Promise<{ ok: boolean; error?: string }>
-  /** When set, open this conversation and focus the composer (used when the
-   *  admin clicks "Message" on an offer or showing). */
+  onSendReply: (
+    id: string,
+    body: string,
+  ) => Promise<{
+    ok: boolean
+    error?: string
+  }>
+  onDelete: (
+    id: string,
+  ) => Promise<{
+    ok: boolean
+    error?: string
+  }>
+  /**
+   * When set, open this conversation and focus the composer
+   * (used when the admin clicks "Message" on an offer or showing).
+   */
   focusId?: string | null
   onFocusHandled?: () => void
 }) {
-  const [filter, setFilter] = useState<Filter>('all')
-  const [selectedId, setSelectedId] = useState<string | null>(inquiries[0]?.id ?? null)
+  const [filter, setFilter] =
+    useState<Filter>('all')
+
+  const [selectedId, setSelectedId] =
+    useState<string | null>(
+      inquiries[0]?.id ?? null,
+    )
+
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
-  const [sendError, setSendError] = useState<string | null>(null)
-  const [deleting, setDeleting] = useState(false)
-  // On phone/tablet the list and thread are separate screens (messenger-style).
-  // `true` shows the thread; `false` shows the conversation list.
-  const [mobileThread, setMobileThread] = useState(false)
-  const threadEndRef = useRef<HTMLDivElement>(null)
-  const composerRef = useRef<HTMLTextAreaElement>(null)
+
+  const [sendError, setSendError] =
+    useState<string | null>(null)
+
+  const [deleting, setDeleting] =
+    useState(false)
+
+  // On phone/tablet the list and thread are separate screens
+  // (messenger-style). true shows the thread; false shows list.
+  const [mobileThread, setMobileThread] =
+    useState(false)
+
+  const threadEndRef =
+    useRef<HTMLDivElement>(null)
+
+  const composerRef =
+    useRef<HTMLTextAreaElement>(null)
+
   const { confirm, dialog } = useConfirm()
 
   // Jump to a requested conversation and focus its composer.
   useEffect(() => {
-    if (!focusId || !inquiries.some((i) => i.id === focusId)) return
+    if (
+      !focusId ||
+      !inquiries.some((i) => i.id === focusId)
+    ) {
+      return
+    }
+
     setFilter('all')
     setSelectedId(focusId)
     setMobileThread(true)
-    const t = setTimeout(() => composerRef.current?.focus(), 60)
+
+    const t = setTimeout(
+      () => composerRef.current?.focus(),
+      60,
+    )
+
     onFocusHandled?.()
+
     return () => clearTimeout(t)
-  }, [focusId, inquiries, onFocusHandled])
+  }, [
+    focusId,
+    inquiries,
+    onFocusHandled,
+  ])
 
   const filtered = inquiries.filter((i) => {
     if (filter === 'all') return true
-    if (filter === 'unread') return displayStatus(i) === 'unread'
+
+    if (filter === 'unread') {
+      return displayStatus(i) === 'unread'
+    }
+
     return i.status === 'responded'
   })
 
@@ -89,43 +154,79 @@ export function MessagesInbox({
       setSelectedId(null)
       return
     }
-    if (!filtered.some((i) => i.id === selectedId)) {
+
+    if (
+      !filtered.some(
+        (i) => i.id === selectedId,
+      )
+    ) {
       setSelectedId(filtered[0].id)
     }
   }, [filtered, selectedId])
 
-  // Reset the composer when switching conversations.
+  // Reset composer when switching conversations.
   useEffect(() => {
     setDraft('')
     setSendError(null)
   }, [selectedId])
 
-  const selected = inquiries.find((i) => i.id === selectedId) ?? null
-  const unreadCount = inquiries.filter((i) => displayStatus(i) === 'unread').length
+  const selected =
+    inquiries.find(
+      (i) => i.id === selectedId,
+    ) ?? null
 
-  // Mark a newly-opened, unread conversation as read.
+  const unreadCount = inquiries.filter(
+    (i) =>
+      displayStatus(i) === 'unread',
+  ).length
+
+  // Mark a newly-opened unread conversation as read.
   useEffect(() => {
-    if (selected && displayStatus(selected) === 'unread') {
+    if (
+      selected &&
+      displayStatus(selected) === 'unread'
+    ) {
       onMarkRead(selected.id)
     }
   }, [selected, onMarkRead])
 
+  // Keep conversation scrolled to latest reply.
   useEffect(() => {
-    threadEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
+    threadEndRef.current?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'end',
+    })
   }, [selected?.replies.length])
 
-  const propertyAddress = (id: string) => propertyMap[id]?.address ?? 'a property'
+  const propertyAddress = (id: string) =>
+    propertyMap[id]?.address ??
+    'a property'
 
   async function handleSend() {
-    if (!selected || !draft.trim() || sending) return
+    if (
+      !selected ||
+      !draft.trim() ||
+      sending
+    ) {
+      return
+    }
+
     setSending(true)
     setSendError(null)
+
     try {
-      const res = await onSendReply(selected.id, draft.trim())
+      const res = await onSendReply(
+        selected.id,
+        draft.trim(),
+      )
+
       if (res.ok) {
         setDraft('')
       } else {
-        setSendError(res.error || 'The reply could not be sent. Please try again.')
+        setSendError(
+          res.error ||
+            'The reply could not be sent. Please try again.',
+        )
       }
     } finally {
       setSending(false)
@@ -134,45 +235,83 @@ export function MessagesInbox({
 
   async function handleDelete() {
     if (!selected || deleting) return
+
     const confirmed = await confirm({
       title: 'Delete this message?',
       description: `This permanently deletes the conversation with ${selected.name}. This cannot be undone.`,
       confirmLabel: 'Delete',
       destructive: true,
     })
+
     if (!confirmed) return
+
     setDeleting(true)
+
     try {
-      const res = await onDelete(selected.id)
+      const res = await onDelete(
+        selected.id,
+      )
+
       if (res.ok) {
         setSelectedId(null)
         setMobileThread(false)
       } else {
-        setSendError(res.error || 'Unable to delete this message.')
+        setSendError(
+          res.error ||
+            'Unable to delete this message.',
+        )
       }
     } finally {
       setDeleting(false)
     }
   }
 
+  /*
+   * Shared loader.
+   *
+   * Uses your existing sending/deleting state so no API
+   * or message logic needs to change.
+   */
+  if (sending || deleting) {
+    return (
+      <Loader
+        fullscreen
+        label={
+          deleting
+            ? 'Deleting message'
+            : 'Sending reply'
+        }
+      />
+    )
+  }
+
   return (
     <div className="flex h-[calc(100dvh-14rem)] flex-col overflow-hidden rounded-xl border border-border bg-card">
       {dialog}
+
       {/* Filter bar */}
       <div className="flex shrink-0 items-center gap-1 border-b border-border px-3 py-2">
         {FILTERS.map((f) => {
           const active = filter === f.id
+
           const count =
             f.id === 'all'
               ? inquiries.length
               : f.id === 'unread'
                 ? unreadCount
-                : inquiries.filter((i) => i.status === 'responded').length
+                : inquiries.filter(
+                    (i) =>
+                      i.status ===
+                      'responded',
+                  ).length
+
           return (
             <button
               key={f.id}
               type="button"
-              onClick={() => setFilter(f.id)}
+              onClick={() =>
+                setFilter(f.id)
+              }
               className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
                 active
                   ? 'bg-secondary text-foreground'
@@ -180,21 +319,30 @@ export function MessagesInbox({
               }`}
             >
               {f.label}
-              <span className="text-xs text-muted-foreground">{count}</span>
+
+              <span className="text-xs text-muted-foreground">
+                {count}
+              </span>
             </button>
           )
         })}
+
         <span className="ml-auto flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-          <span className="flex size-2 rounded-full bg-accent" aria-hidden />
+          <span
+            className="flex size-2 rounded-full bg-accent"
+            aria-hidden
+          />
           {unreadCount} unread
         </span>
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
-        {/* Message list — full screen on mobile, sidebar on desktop */}
+        {/* Message list */}
         <ul
           className={`min-h-0 flex-1 divide-y divide-border overflow-y-auto lg:flex-none lg:w-80 lg:shrink-0 lg:border-r lg:border-border ${
-            mobileThread ? 'hidden lg:block' : 'block'
+            mobileThread
+              ? 'hidden lg:block'
+              : 'block'
           }`}
         >
           {filtered.length === 0 && (
@@ -202,9 +350,15 @@ export function MessagesInbox({
               No messages in this view.
             </li>
           )}
+
           {filtered.map((i) => {
-            const active = i.id === selectedId
-            const unread = displayStatus(i) === 'unread'
+            const active =
+              i.id === selectedId
+
+            const unread =
+              displayStatus(i) ===
+              'unread'
+
             return (
               <li key={i.id}>
                 <button
@@ -214,9 +368,15 @@ export function MessagesInbox({
                     setMobileThread(true)
                   }}
                   className={`flex w-full items-start gap-3 px-4 py-3 text-left transition-colors ${
-                    active ? 'bg-secondary' : 'hover:bg-secondary/50'
+                    active
+                      ? 'bg-secondary'
+                      : 'hover:bg-secondary/50'
                   }`}
-                  aria-current={active ? 'true' : undefined}
+                  aria-current={
+                    active
+                      ? 'true'
+                      : undefined
+                  }
                 >
                   <span
                     className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary"
@@ -224,6 +384,7 @@ export function MessagesInbox({
                   >
                     {initials(i.name)}
                   </span>
+
                   <span className="flex min-w-0 flex-1 flex-col gap-1">
                     <span className="flex items-center gap-2">
                       {unread && (
@@ -232,6 +393,7 @@ export function MessagesInbox({
                           aria-label="Unread"
                         />
                       )}
+
                       <span
                         className={`min-w-0 flex-1 truncate text-sm ${
                           unread
@@ -241,15 +403,31 @@ export function MessagesInbox({
                       >
                         {i.name}
                       </span>
+
                       <span className="shrink-0 text-[11px] text-muted-foreground">
-                        {timeAgo(i.createdAt)}
+                        {timeAgo(
+                          i.createdAt,
+                        )}
                       </span>
                     </span>
-                    <span className="line-clamp-2 text-xs text-muted-foreground">{i.message}</span>
-                    {i.replies.length > 0 && (
+
+                    <span className="line-clamp-2 text-xs text-muted-foreground">
+                      {i.message}
+                    </span>
+
+                    {i.replies.length >
+                      0 && (
                       <span className="inline-flex w-fit items-center gap-1 text-[11px] font-medium text-primary">
                         <Reply className="size-3" />
-                        {i.replies.length} {i.replies.length === 1 ? 'reply' : 'replies'}
+
+                        {
+                          i.replies
+                            .length
+                        }{' '}
+                        {i.replies
+                          .length === 1
+                          ? 'reply'
+                          : 'replies'}
                       </span>
                     )}
                   </span>
@@ -259,70 +437,102 @@ export function MessagesInbox({
           })}
         </ul>
 
-        {/* Reading pane — full screen on mobile, right column on desktop */}
+        {/* Reading pane */}
         {selected ? (
           <div
             className={`min-h-0 flex-1 flex-col ${
-              mobileThread ? 'flex' : 'hidden lg:flex'
+              mobileThread
+                ? 'flex'
+                : 'hidden lg:flex'
             }`}
           >
+            {/* Message header */}
             <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border p-5">
               <div className="flex min-w-0 items-start gap-3">
                 <button
                   type="button"
-                  onClick={() => setMobileThread(false)}
+                  onClick={() =>
+                    setMobileThread(false)
+                  }
                   className="-ml-1 mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground lg:hidden"
                   aria-label="Back to conversations"
                 >
                   <ArrowLeft className="size-5" />
                 </button>
+
                 <span
                   className="flex size-11 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary"
                   aria-hidden
                 >
-                  {initials(selected.name)}
-                </span>
-                <div className="min-w-0">
-                  <p className="font-display text-lg font-bold text-foreground">{selected.name}</p>
-                  {selected.company && (
-                    <p className="text-sm text-muted-foreground">{selected.company}</p>
+                  {initials(
+                    selected.name,
                   )}
+                </span>
+
+                <div className="min-w-0">
+                  <p className="font-display text-lg font-bold text-foreground">
+                    {selected.name}
+                  </p>
+
+                  {selected.company && (
+                    <p className="text-sm text-muted-foreground">
+                      {
+                        selected.company
+                      }
+                    </p>
+                  )}
+
                   <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
                     <a
                       href={`mailto:${selected.email}`}
                       className="flex items-center gap-1.5 hover:text-foreground"
                     >
-                      <Mail className="size-3.5" /> {selected.email}
+                      <Mail className="size-3.5" />
+                      {selected.email}
                     </a>
+
                     <a
                       href={`tel:${selected.phone}`}
                       className="flex items-center gap-1.5 hover:text-foreground"
                     >
-                      <Phone className="size-3.5" /> {selected.phone}
+                      <Phone className="size-3.5" />
+                      {selected.phone}
                     </a>
                   </div>
                 </div>
               </div>
+
               <div className="flex items-center gap-2">
                 <span
                   className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset ${
-                    displayStatus(selected) === 'unread'
+                    displayStatus(
+                      selected,
+                    ) === 'unread'
                       ? 'bg-accent/15 text-accent-foreground ring-accent/30'
-                      : displayStatus(selected) === 'read'
+                      : displayStatus(
+                            selected,
+                          ) === 'read'
                         ? 'bg-secondary text-muted-foreground ring-border'
                         : 'bg-primary/10 text-primary ring-primary/25'
                   }`}
                 >
-                  {displayStatus(selected) === 'unread'
+                  {displayStatus(
+                    selected,
+                  ) === 'unread'
                     ? 'Unread'
-                    : displayStatus(selected) === 'read'
+                    : displayStatus(
+                          selected,
+                        ) === 'read'
                       ? 'Read'
                       : 'Responded'}
                 </span>
+
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={handleDelete}
+                  onClick={
+                    handleDelete
+                  }
                   disabled={deleting}
                   aria-label="Delete message"
                   className="text-muted-foreground hover:text-destructive"
@@ -337,69 +547,123 @@ export function MessagesInbox({
               <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                 <span className="inline-flex items-center gap-1.5 rounded-md border border-border px-2 py-1">
                   <Building2 className="size-3.5" />
-                  {selected.propertyId ? propertyAddress(selected.propertyId) : 'General inquiry'}
+
+                  {selected.propertyId
+                    ? propertyAddress(
+                        selected.propertyId,
+                      )
+                    : 'General inquiry'}
                 </span>
-                <span>{formatDateTime(selected.createdAt)}</span>
+
+                <span>
+                  {formatDateTime(
+                    selected.createdAt,
+                  )}
+                </span>
               </div>
 
               {/* Inbound message */}
               <div className="flex max-w-[85%] flex-col gap-1">
                 <div className="rounded-2xl rounded-tl-sm bg-secondary px-4 py-3">
                   <p className="whitespace-pre-wrap text-pretty leading-relaxed text-foreground">
-                    {selected.message}
+                    {
+                      selected.message
+                    }
                   </p>
                 </div>
+
                 <span className="pl-1 text-[11px] text-muted-foreground">
-                  {selected.name} · {timeAgo(selected.createdAt)}
+                  {selected.name} ·{' '}
+                  {timeAgo(
+                    selected.createdAt,
+                  )}
                 </span>
               </div>
 
               {/* Replies */}
-              {selected.replies.map((r) => {
-                const fromInvestor = r.authorRole === 'investor'
-                if (fromInvestor) {
+              {selected.replies.map(
+                (r) => {
+                  const fromInvestor =
+                    r.authorRole ===
+                    'investor'
+
+                  if (fromInvestor) {
+                    return (
+                      <div
+                        key={r.id}
+                        className="flex max-w-[85%] flex-col gap-1"
+                      >
+                        <div className="rounded-2xl rounded-tl-sm bg-secondary px-4 py-3">
+                          <p className="whitespace-pre-wrap text-pretty leading-relaxed text-foreground">
+                            {
+                              r.body
+                            }
+                          </p>
+                        </div>
+
+                        <span className="pl-1 text-[11px] text-muted-foreground">
+                          {
+                            selected.name
+                          }{' '}
+                          ·{' '}
+                          {timeAgo(
+                            r.createdAt,
+                          )}
+                        </span>
+                      </div>
+                    )
+                  }
+
                   return (
-                    <div key={r.id} className="flex max-w-[85%] flex-col gap-1">
-                      <div className="rounded-2xl rounded-tl-sm bg-secondary px-4 py-3">
-                        <p className="whitespace-pre-wrap text-pretty leading-relaxed text-foreground">
+                    <div
+                      key={r.id}
+                      className="flex max-w-[85%] flex-col gap-1 self-end"
+                    >
+                      <div className="rounded-2xl rounded-tr-sm bg-primary px-4 py-3 text-primary-foreground">
+                        <p className="whitespace-pre-wrap text-pretty leading-relaxed">
                           {r.body}
                         </p>
                       </div>
-                      <span className="pl-1 text-[11px] text-muted-foreground">
-                        {selected.name} · {timeAgo(r.createdAt)}
+
+                      <span className="pr-1 text-right text-[11px] text-muted-foreground">
+                        {r.author} ·{' '}
+                        {timeAgo(
+                          r.createdAt,
+                        )}
                       </span>
                     </div>
                   )
-                }
-                return (
-                  <div key={r.id} className="flex max-w-[85%] flex-col gap-1 self-end">
-                    <div className="rounded-2xl rounded-tr-sm bg-primary px-4 py-3 text-primary-foreground">
-                      <p className="whitespace-pre-wrap text-pretty leading-relaxed">{r.body}</p>
-                    </div>
-                    <span className="pr-1 text-right text-[11px] text-muted-foreground">
-                      {r.author} · {timeAgo(r.createdAt)}
-                    </span>
-                  </div>
-                )
-              })}
+                },
+              )}
+
               <div ref={threadEndRef} />
             </div>
 
             {/* Composer */}
             <div className="border-t border-border p-4">
-              <label htmlFor="reply-body" className="sr-only">
+              <label
+                htmlFor="reply-body"
+                className="sr-only"
+              >
                 Write a reply
               </label>
+
               <Textarea
                 ref={composerRef}
                 id="reply-body"
                 value={draft}
-                onChange={(e) => setDraft(e.target.value)}
+                onChange={(e) =>
+                  setDraft(
+                    e.target.value,
+                  )
+                }
                 onKeyDown={(e) => {
                   if (
                     e.key === 'Enter' &&
-                    (e.metaKey || e.ctrlKey) &&
-                    !e.nativeEvent.isComposing
+                    (e.metaKey ||
+                      e.ctrlKey) &&
+                    !e.nativeEvent
+                      .isComposing
                   ) {
                     e.preventDefault()
                     void handleSend()
@@ -409,30 +673,62 @@ export function MessagesInbox({
                 rows={3}
                 className="resize-none"
               />
+
               {sendError && (
                 <p className="mt-2 flex items-center gap-1.5 text-xs font-medium text-destructive">
-                  <AlertCircle className="size-3.5" /> {sendError}
+                  <AlertCircle className="size-3.5" />
+                  {sendError}
                 </p>
               )}
+
               <div className="mt-2 flex flex-wrap items-center gap-2">
-                <Button onClick={handleSend} disabled={!draft.trim() || sending}>
+                <Button
+                  onClick={
+                    handleSend
+                  }
+                  disabled={
+                    !draft.trim() ||
+                    sending
+                  }
+                >
                   <Send className="size-4" />
-                  {sending ? 'Sending…' : 'Send email reply'}
+
+                  {sending
+                    ? 'Sending…'
+                    : 'Send email reply'}
                 </Button>
-                {selected.status === 'responded' ? (
-                  <Button variant="outline" onClick={() => onUpdateStatus(selected.id, 'new')}>
+
+                {selected.status ===
+                'responded' ? (
+                  <Button
+                    variant="outline"
+                    onClick={() =>
+                      onUpdateStatus(
+                        selected.id,
+                        'new',
+                      )
+                    }
+                  >
                     Mark unread
                   </Button>
                 ) : (
                   <Button
                     variant="outline"
-                    onClick={() => onUpdateStatus(selected.id, 'responded')}
+                    onClick={() =>
+                      onUpdateStatus(
+                        selected.id,
+                        'responded',
+                      )
+                    }
                   >
-                    <Check className="size-4" /> Mark responded
+                    <Check className="size-4" />
+                    Mark responded
                   </Button>
                 )}
+
                 <span className="ml-auto hidden text-[11px] text-muted-foreground sm:block">
-                  Press ⌘/Ctrl + Enter to send
+                  Press ⌘/Ctrl +
+                  Enter to send
                 </span>
               </div>
             </div>
@@ -440,7 +736,10 @@ export function MessagesInbox({
         ) : (
           <div className="flex flex-col items-center justify-center gap-2 p-10 text-center text-muted-foreground">
             <Mail className="size-8 opacity-40" />
-            <p className="text-sm">Select a message to read it.</p>
+
+            <p className="text-sm">
+              Select a message to read it.
+            </p>
           </div>
         )}
       </div>
