@@ -20,7 +20,12 @@ export function Loader({ label = 'Loading', className, fullscreen }: LoaderProps
     >
       <div className="relative flex h-14 w-14 items-center justify-center">
         <span className="absolute inset-0 animate-spin rounded-full border-2 border-primary/20 border-t-primary" />
-        <Building2 className="h-6 w-6 text-primary" aria-hidden="true" />
+        <img
+          src="/logo1.png"
+          alt=""
+          aria-hidden="true"
+          className="h-6 w-6 text-primary"
+        /> 
       </div>
       <p className="text-sm font-medium text-muted-foreground">
         {label}

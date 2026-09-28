@@ -18,6 +18,7 @@ import {
 } from '@/components/admin/admin-nav'
 import { PasswordInput } from '@/components/password-input'
 import { PhoneInput } from '@/components/phone-input'
+import { Loader } from '@/components/loader'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -145,18 +146,13 @@ export default function AdminUsersPage() {
   )
 
   if (
-    !ready ||
-    !currentUser ||
-    currentUser.role !== 'admin'
-  ) {
-    return (
-      <div className="flex min-h-dvh items-center justify-center bg-secondary">
-        <p className="text-sm text-muted-foreground">
-          Loading…
-        </p>
-      </div>
-    )
-  }
+  !ready ||
+  !currentUser ||
+  currentUser.role !== 'admin'
+) {
+  return <Loader fullscreen label="Loading" />
+}
+  
 
   return (
     <div className="flex min-h-dvh bg-white dark:bg-[#242424]">
