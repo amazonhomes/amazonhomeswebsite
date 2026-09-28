@@ -1,8 +1,7 @@
 'use client'
 
 import { useRef, useState } from 'react'
-import Image from 'next/image'
-import { ImagePlus, Lock, LockOpen, X } from 'lucide-react'
+import { ImagePlus, Loader2, Lock, LockOpen, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import {
@@ -22,6 +21,8 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+import { LockedImage } from '@/components/locked-image'
+import { formatCurrency } from '@/lib/format'
 import { useStore } from '@/lib/store'
 import {
   BUSINESS_TZ_LABEL,
@@ -41,6 +42,42 @@ const propertyTypes: PropertyType[] = [
 ]
 
 const statuses: PropertyStatus[] = ['available', 'under-contract', 'sold', 'archived']
+
+const numericKeys = ['price', 'arv', 'estimatedRehab', 'beds', 'baths', 'sqft', 'yearBuilt'] as const
+type NumericKey = (typeof numericKeys)[number]
+type NumericText = Record<NumericKey, string>
+
+const requiredNumeric: Record<NumericKey, boolean> = {
+  price: true,
+  arv: true,
+  estimatedRehab: true,
+  beds: false,
+  baths: false,
+  sqft: false,
+  yearBuilt: false,
+}
+
+const numericLabels: Record<NumericKey, string> = {
+  price: 'Price',
+  arv: 'ARV',
+  estimatedRehab: 'Est. rehab',
+  beds: 'Beds',
+  baths: 'Baths',
+  sqft: 'Sqft',
+  yearBuilt: 'Year built',
+}
+
+function toNumericText(p: Property): NumericText {
+  return Object.fromEntries(numericKeys.map((k) => [k, String(p[k] ?? '')])) as NumericText
+}
+
+/** Empty / partial input ("", "-", ".") is not a number yet; returns null
+ *  instead of coercing to 0 or NaN. */
+function parseNumeric(text: string): number | null {
+  if (text.trim() === '') return null
+  const n = Number(text)
+  return Number.isFinite(n) ? n : null
+}
 
 function emptyDraft(): Property {
   return {
@@ -85,7 +122,28 @@ export function PropertyEditor({
   const [highlightsText, setHighlightsText] = useState(
     (property?.highlights ?? []).join('\n'),
   )
+  // Numeric inputs are edited as raw text so a field can be temporarily empty;
+  // conversion to numbers happens only on submit.
+  const [numText, setNumText] = useState<NumericText>(() => toNumericText(draft))
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  function numInputProps(key: NumericKey) {
+    return {
+      type: 'number' as const,
+      inputMode: 'decimal' as const,
+      value: numText[key],
+      onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
+        const value = e.target.value
+        setNumText((t) => ({ ...t, [key]: value }))
+      },
+      required: requiredNumeric[key],
+    }
+  }
+
+  const spreadInputs = [numText.arv, numText.price, numText.estimatedRehab].map(parseNumeric)
+  const estimatedSpread = spreadInputs.every((n) => n !== null)
+    ? (spreadInputs[0] as number) - (spreadInputs[1] as number) - (spreadInputs[2] as number)
+    : null
 
   function set<K extends keyof Property>(key: K, value: Property[K]) {
     setDraft((d) => ({ ...d, [key]: value }))
@@ -140,16 +198,38 @@ export function PropertyEditor({
   }
 
   const [saving, setSaving] = useState(false)
+  // A ref (not state) so a rapid double-click can't slip past before re-render.
+  const submittingRef = useRef(false)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    if (submittingRef.current) return
+
+    const numbers = {} as Record<NumericKey, number>
+    for (const key of numericKeys) {
+      const parsed = parseNumeric(numText[key])
+      if (parsed === null && requiredNumeric[key]) {
+        toast.error(`${numericLabels[key]} is required.`)
+        return
+      }
+      numbers[key] = parsed ?? 0
+    }
+
+    // A protected photo with an empty url is the redacted public copy; saving
+    // it would wipe the stored private original, so refuse instead.
+    if (draft.photos.some((p) => !p.url)) {
+      toast.error('Photos are still loading. Close the editor and reopen it, then try again.')
+      return
+    }
+
     const highlights = highlightsText
       .split('\n')
       .map((h) => h.trim())
       .filter(Boolean)
+    submittingRef.current = true
     setSaving(true)
     try {
-      await saveProperty({ ...draft, highlights })
+      await saveProperty({ ...draft, ...numbers, highlights })
       toast.success(property ? 'Property updated' : 'Property added')
       onOpenChange(false)
     } catch (err) {
@@ -160,6 +240,7 @@ export function PropertyEditor({
           : 'Could not save property. Please try again.',
       )
     } finally {
+      submittingRef.current = false
       setSaving(false)
     }
   }
@@ -232,16 +313,17 @@ export function PropertyEditor({
                     key={`${photo.url.slice(0, 24)}-${i}`}
                     className="group relative overflow-hidden rounded-lg border border-border"
                   >
-                    <div className="relative aspect-[4/3] w-full">
-                      <Image
-                        src={photo.url || '/placeholder.svg'}
-                        alt={photo.alt || 'Property photo'}
-                        fill
-                        sizes="200px"
-                        className="object-cover"
-                        unoptimized
-                      />
-                    </div>
+                    {/* Stored protected originals are private Storage paths;
+                        LockedImage swaps them for a short-lived signed URL
+                        (admin session) without altering the stored value. */}
+                    <LockedImage
+                      src={photo.url}
+                      alt={photo.alt || 'Property photo'}
+                      locked={false}
+                      previewUrl={photo.previewUrl}
+                      propertyId={draft.id}
+                      className="aspect-[4/3] w-full"
+                    />
                     {i === 0 && (
                       <span className="absolute left-1.5 top-1.5 rounded bg-foreground px-1.5 py-0.5 text-[10px] font-semibold text-background">
                         Cover
@@ -283,30 +365,21 @@ export function PropertyEditor({
 
           <div className="grid gap-4 sm:grid-cols-3">
             <Field label="Price">
-              <Input
-                type="number"
-                value={draft.price}
-                onChange={(e) => set('price', Number(e.target.value))}
-                required
-              />
+              <Input {...numInputProps('price')} />
             </Field>
             <Field label="ARV">
-              <Input
-                type="number"
-                value={draft.arv}
-                onChange={(e) => set('arv', Number(e.target.value))}
-                required
-              />
+              <Input {...numInputProps('arv')} />
             </Field>
             <Field label="Est. rehab">
-              <Input
-                type="number"
-                value={draft.estimatedRehab}
-                onChange={(e) => set('estimatedRehab', Number(e.target.value))}
-                required
-              />
+              <Input {...numInputProps('estimatedRehab')} />
             </Field>
           </div>
+          <p className="-mt-2 text-sm text-muted-foreground" aria-live="polite">
+            Estimated spread (ARV − price − rehab):{' '}
+            <span className="font-semibold text-foreground">
+              {estimatedSpread === null ? '—' : formatCurrency(estimatedSpread)}
+            </span>
+          </p>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Type">
@@ -354,32 +427,16 @@ export function PropertyEditor({
 
           <div className="grid gap-4 sm:grid-cols-4">
             <Field label="Beds">
-              <Input
-                type="number"
-                value={draft.beds}
-                onChange={(e) => set('beds', Number(e.target.value))}
-              />
+              <Input {...numInputProps('beds')} />
             </Field>
             <Field label="Baths">
-              <Input
-                type="number"
-                value={draft.baths}
-                onChange={(e) => set('baths', Number(e.target.value))}
-              />
+              <Input {...numInputProps('baths')} />
             </Field>
             <Field label="Sqft">
-              <Input
-                type="number"
-                value={draft.sqft}
-                onChange={(e) => set('sqft', Number(e.target.value))}
-              />
+              <Input {...numInputProps('sqft')} />
             </Field>
             <Field label="Year built">
-              <Input
-                type="number"
-                value={draft.yearBuilt}
-                onChange={(e) => set('yearBuilt', Number(e.target.value))}
-              />
+              <Input {...numInputProps('yearBuilt')} />
             </Field>
           </div>
 
@@ -420,10 +477,24 @@ export function PropertyEditor({
           </label>
 
           <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              disabled={saving}
+            >
               Cancel
             </Button>
-            <Button type="submit">{property ? 'Save changes' : 'Add property'}</Button>
+            <Button type="submit" disabled={saving} aria-busy={saving}>
+              {saving && <Loader2 className="size-4 animate-spin" aria-hidden />}
+              {saving
+                ? property
+                  ? 'Saving changes...'
+                  : 'Saving property...'
+                : property
+                  ? 'Save changes'
+                  : 'Add property'}
+            </Button>
           </div>
         </form>
       </DialogContent>

@@ -92,55 +92,62 @@ export async function preparePhotosForSave(
   propertyId: string,
   photos: PropertyPhoto[],
 ): Promise<PropertyPhoto[]> {
-  const out: PropertyPhoto[] = []
+  // Photos are independent, so upload them concurrently. Promise.all keeps
+  // the original order (cover first) and rejects on the first failure.
+  return Promise.all(
+    photos.map((photo) =>
+      photo.url.startsWith('data:') ? uploadNewPhoto(supabase, propertyId, photo) : photo,
+    ),
+  )
+}
 
-  for (const photo of photos) {
-    if (!photo.url.startsWith('data:')) {
-      out.push(photo)
-      continue
-    }
+async function uploadNewPhoto(
+  supabase: SupabaseClient,
+  propertyId: string,
+  photo: PropertyPhoto,
+): Promise<PropertyPhoto> {
+  const blob = await dataUrlToBlob(photo.url)
+  const ext = mimeToExt(blob.type)
+  const base = `properties/${propertyId}/${randomId()}`
 
-    const blob = await dataUrlToBlob(photo.url)
-    const ext = mimeToExt(blob.type)
-    const base = `properties/${propertyId}/${randomId()}`
-
-    if (photo.protected) {
-      const originalPath = `${base}.${ext}`
-      const { error: upErr } = await supabase.storage
+  if (photo.protected) {
+    const originalPath = `${base}.${ext}`
+    const previewPath = `${base}-preview.webp`
+    // The original upload and the preview derivation/upload don't depend on
+    // each other; both must succeed before the photo is recorded.
+    const [origRes, pvRes] = await Promise.all([
+      supabase.storage
         .from(PRIVATE_BUCKET)
-        .upload(originalPath, blob, { contentType: blob.type, upsert: false })
-      if (upErr) throw new Error(`Original upload failed: ${upErr.message}`)
+        .upload(originalPath, blob, { contentType: blob.type, upsert: false }),
+      generatePreviewBlob(blob).then((previewBlob) =>
+        supabase.storage
+          .from(PREVIEW_BUCKET)
+          .upload(previewPath, previewBlob, { contentType: 'image/webp', upsert: false }),
+      ),
+    ])
+    if (origRes.error) throw new Error(`Original upload failed: ${origRes.error.message}`)
+    if (pvRes.error) throw new Error(`Preview upload failed: ${pvRes.error.message}`)
 
-      const previewBlob = await generatePreviewBlob(blob)
-      const previewPath = `${base}-preview.webp`
-      const { error: pvErr } = await supabase.storage
-        .from(PREVIEW_BUCKET)
-        .upload(previewPath, previewBlob, { contentType: 'image/webp', upsert: false })
-      if (pvErr) throw new Error(`Preview upload failed: ${pvErr.message}`)
-
-      const { data: pub } = supabase.storage.from(PREVIEW_BUCKET).getPublicUrl(previewPath)
-      out.push({
-        url: originalPath,
-        previewUrl: pub.publicUrl,
-        alt: photo.alt,
-        protected: true,
-      })
-    } else {
-      const publicPath = `${base}.${ext}`
-      const { error: upErr } = await supabase.storage
-        .from(PREVIEW_BUCKET)
-        .upload(publicPath, blob, { contentType: blob.type, upsert: false })
-      if (upErr) throw new Error(`Photo upload failed: ${upErr.message}`)
-
-      const { data: pub } = supabase.storage.from(PREVIEW_BUCKET).getPublicUrl(publicPath)
-      out.push({
-        url: pub.publicUrl,
-        previewUrl: null,
-        alt: photo.alt,
-        protected: false,
-      })
+    const { data: pub } = supabase.storage.from(PREVIEW_BUCKET).getPublicUrl(previewPath)
+    return {
+      url: originalPath,
+      previewUrl: pub.publicUrl,
+      alt: photo.alt,
+      protected: true,
     }
   }
 
-  return out
+  const publicPath = `${base}.${ext}`
+  const { error: upErr } = await supabase.storage
+    .from(PREVIEW_BUCKET)
+    .upload(publicPath, blob, { contentType: blob.type, upsert: false })
+  if (upErr) throw new Error(`Photo upload failed: ${upErr.message}`)
+
+  const { data: pub } = supabase.storage.from(PREVIEW_BUCKET).getPublicUrl(publicPath)
+  return {
+    url: pub.publicUrl,
+    previewUrl: null,
+    alt: photo.alt,
+    protected: false,
+  }
 }
