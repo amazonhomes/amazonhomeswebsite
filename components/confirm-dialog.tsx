@@ -1,7 +1,7 @@
 'use client'
 
-import { useCallback, useState } from 'react'
-import { AlertTriangle } from 'lucide-react'
+import { useCallback, useRef, useState } from 'react'
+import { AlertTriangle, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -18,6 +18,13 @@ type ConfirmOptions = {
   confirmLabel?: string
   cancelLabel?: string
   destructive?: boolean
+  /**
+   * Optional async action run when the user confirms. While it runs the dialog
+   * stays open with a spinner and disabled buttons (no duplicate submits). It
+   * closes when the action finishes; `confirm()` resolves with the action's
+   * boolean result.
+   */
+  onConfirm?: () => Promise<boolean>
 }
 
 type PendingState = ConfirmOptions & {
@@ -31,6 +38,8 @@ type PendingState = ConfirmOptions & {
  */
 export function useConfirm() {
   const [state, setState] = useState<PendingState>({ open: false, title: '' })
+  const [busy, setBusy] = useState(false)
+  const busyRef = useRef(false)
 
   const confirm = useCallback((options: ConfirmOptions) => {
     return new Promise<boolean>((resolve) => {
@@ -46,8 +55,28 @@ export function useConfirm() {
     [state],
   )
 
+  const handleConfirm = useCallback(async () => {
+    if (!state.onConfirm) {
+      settle(true)
+      return
+    }
+    if (busyRef.current) return
+    busyRef.current = true
+    setBusy(true)
+    let result = false
+    try {
+      result = await state.onConfirm()
+    } catch {
+      result = false
+    } finally {
+      busyRef.current = false
+      setBusy(false)
+    }
+    settle(result)
+  }, [state, settle])
+
   const dialog = (
-    <Dialog open={state.open} onOpenChange={(open) => !open && settle(false)}>
+    <Dialog open={state.open} onOpenChange={(open) => !open && !busyRef.current && settle(false)}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <div className="flex items-center gap-3">
@@ -63,13 +92,16 @@ export function useConfirm() {
           )}
         </DialogHeader>
         <DialogFooter className="gap-2 sm:gap-2">
-          <Button variant="outline" onClick={() => settle(false)}>
+          <Button variant="outline" onClick={() => settle(false)} disabled={busy}>
             {state.cancelLabel ?? 'Cancel'}
           </Button>
           <Button
             variant={state.destructive ? 'destructive' : 'default'}
-            onClick={() => settle(true)}
+            onClick={handleConfirm}
+            disabled={busy}
+            aria-busy={busy}
           >
+            {busy && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}
             {state.confirmLabel ?? 'Confirm'}
           </Button>
         </DialogFooter>

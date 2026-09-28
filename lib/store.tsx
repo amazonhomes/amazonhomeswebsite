@@ -101,6 +101,8 @@ interface StoreContextValue {
   deleteProperty: (propertyId: string) => Promise<void>
   updateOfferStatus: (id: string, status: Offer['status']) => Promise<void>
   updateShowingStatus: (id: string, status: ShowingRequest['status']) => Promise<void>
+  deleteOffer: (id: string) => Promise<{ ok: boolean; error?: string }>
+  deleteShowing: (id: string) => Promise<{ ok: boolean; error?: string }>
   updateInquiryStatus: (id: string, status: Inquiry['status']) => Promise<void>
   /** Marks a conversation as read (no-op if already read). */
   markInquiryRead: (id: string) => Promise<void>
@@ -873,6 +875,44 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [supabase],
   )
 
+  /** Admin-only: permanently deletes one offer via the server route (admin +
+   *  RLS enforced there), then removes it locally. */
+  const deleteOffer = useCallback<StoreContextValue['deleteOffer']>(async (id) => {
+    try {
+      const res = await fetch(`/api/admin/offers/${id}`, { method: 'DELETE' })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok || !data.ok) {
+        return { ok: false, error: data.error || 'Unable to delete this offer.' }
+      }
+      const propertyId = offers.find((o) => o.id === id)?.propertyId
+      setOffers((prev) => prev.filter((o) => o.id !== id))
+      if (propertyId) {
+        setOfferCounts((prev) => ({
+          ...prev,
+          [propertyId]: Math.max(0, (prev[propertyId] ?? 0) - 1),
+        }))
+      }
+      return { ok: true }
+    } catch {
+      return { ok: false, error: 'Unable to delete this offer. Please try again.' }
+    }
+  }, [offers])
+
+  /** Admin-only: permanently deletes one showing request via the server route. */
+  const deleteShowing = useCallback<StoreContextValue['deleteShowing']>(async (id) => {
+    try {
+      const res = await fetch(`/api/admin/showings/${id}`, { method: 'DELETE' })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok || !data.ok) {
+        return { ok: false, error: data.error || 'Unable to delete this showing.' }
+      }
+      setShowings((prev) => prev.filter((s) => s.id !== id))
+      return { ok: true }
+    } catch {
+      return { ok: false, error: 'Unable to delete this showing. Please try again.' }
+    }
+  }, [])
+
   const updateInquiryStatus = useCallback<StoreContextValue['updateInquiryStatus']>(
     async (id, status) => {
       const existing = inquiries.find((i) => i.id === id)
@@ -1072,6 +1112,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       deleteProperty,
       updateOfferStatus,
       updateShowingStatus,
+      deleteOffer,
+      deleteShowing,
       updateInquiryStatus,
       markInquiryRead,
       replyToInquiry,
@@ -1107,6 +1149,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       deleteProperty,
       updateOfferStatus,
       updateShowingStatus,
+      deleteOffer,
+      deleteShowing,
       updateInquiryStatus,
       markInquiryRead,
       replyToInquiry,

@@ -2,6 +2,7 @@
 
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
+import { toast } from 'sonner'
 import {
   Building2,
   CalendarDays,
@@ -243,6 +244,8 @@ function AdminDashboard() {
     deleteProperty,
     updateOfferStatus,
     updateShowingStatus,
+    deleteOffer,
+    deleteShowing,
     updateInquiryStatus,
     markInquiryRead,
     sendAdminReply,
@@ -254,6 +257,37 @@ function AdminDashboard() {
   } = useStore()
 
   const { confirm, dialog: confirmDialog } = useConfirm()
+  const confirmDeleteOffer = (o: Offer) =>
+    void confirm({
+      title: 'Delete offer?',
+      description: `This permanently deletes the ${formatCurrency(o.amount)} offer from ${o.name} on ${
+        propertyMap[o.propertyId]?.address ?? 'this property'
+      }. This can't be undone.`,
+      confirmLabel: 'Delete offer',
+      destructive: true,
+      onConfirm: async () => {
+        const res = await deleteOffer(o.id)
+        if (res.ok) toast.success('Offer deleted')
+        else toast.error(res.error ?? 'Unable to delete this offer.')
+        return res.ok
+      },
+    })
+
+  const confirmDeleteShowing = (s: ShowingRequest) =>
+    void confirm({
+      title: 'Delete showing request?',
+      description: `This permanently deletes the showing request from ${s.name} for ${
+        propertyMap[s.propertyId]?.address ?? 'this property'
+      }. This can't be undone.`,
+      confirmLabel: 'Delete showing',
+      destructive: true,
+      onConfirm: async () => {
+        const res = await deleteShowing(s.id)
+        if (res.ok) toast.success('Showing request deleted')
+        else toast.error(res.error ?? 'Unable to delete this showing.')
+        return res.ok
+      },
+    })
 
   const [tourOpen, setTourOpen] = useState(false)
 
@@ -561,6 +595,22 @@ function AdminDashboard() {
                     : offers.filter((o) => o.status === id).length
                 }
                 filterFor={(o, id) => o.status === id}
+                searchable={(o) =>
+                  [
+                    propertyMap[o.propertyId]?.address,
+                    o.name,
+                    o.company,
+                    o.email,
+                    o.phone,
+                    o.phone?.replace(/\D/g, ''),
+                    o.amount,
+                    formatCurrency(o.amount),
+                    o.status,
+                  ]
+                    .filter((v) => v !== null && v !== undefined && v !== '')
+                    .join(' ')
+                }
+                searchPlaceholder="Search offers…"
                 rowLabel={(o) => `Select offer from ${o.name}`}
                 emptyLabel="No offers in this view."
                 columns={[
@@ -652,6 +702,8 @@ function AdminDashboard() {
                         }.${o.notes ? ` Notes: ${o.notes}` : ''}`,
                       })
                     }
+                    onDelete={() => confirmDeleteOffer(o)}
+                    deleteLabel="Delete offer"
                   />
                 )}
               />
@@ -674,6 +726,23 @@ function AdminDashboard() {
                     : showings.filter((s) => s.status === id).length
                 }
                 filterFor={(s, id) => s.status === id}
+                searchable={(s) =>
+                  [
+                    propertyMap[s.propertyId]?.address,
+                    s.name,
+                    s.company,
+                    s.email,
+                    s.phone,
+                    s.phone?.replace(/\D/g, ''),
+                    showingPreferenceText(s),
+                    showingPreferenceText(s, 'long'),
+                    s.preferredTime,
+                    s.status,
+                  ]
+                    .filter((v) => v !== null && v !== undefined && v !== '')
+                    .join(' ')
+                }
+                searchPlaceholder="Search showings…"
                 rowLabel={(s) => `Select showing from ${s.name}`}
                 emptyLabel="No showing requests in this view."
                 columns={[
@@ -754,6 +823,8 @@ function AdminDashboard() {
                        }. Preferred showing: ${showingPreferenceText(s, 'long')}.${s.message ? ` Message: ${s.message}` : ''}`,
                       })
                     }
+                    onDelete={() => confirmDeleteShowing(s)}
+                    deleteLabel="Delete showing"
                   />
                 )}
               />
@@ -1261,6 +1332,8 @@ function StatusMenu({
   options,
   onChange,
   onMessage,
+  onDelete,
+  deleteLabel = 'Delete',
 }: {
   label: string
   value: string
@@ -1271,6 +1344,8 @@ function StatusMenu({
   onChange: (value: string) => void
   /** When provided, renders a "Message" action at the top of the menu. */
   onMessage?: () => void
+  onDelete?: () => void
+  deleteLabel?: string
 }) {
   return (
     <DropdownMenu>
@@ -1318,6 +1393,14 @@ function StatusMenu({
             </DropdownMenuRadioItem>
           ))}
         </DropdownMenuRadioGroup>
+        {onDelete && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem variant="destructive" onClick={onDelete}>
+              <Trash2 className="size-4" /> {deleteLabel}
+            </DropdownMenuItem>
+          </>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   )

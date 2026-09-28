@@ -302,6 +302,7 @@ export function DataTable<T extends { id: string }>({
 
           {/* SEARCH */}
           {searchable && (
+         
             <div className="flex w-full flex-col gap-2 sm:flex-row xl:w-auto xl:justify-end">
               <div className="relative min-w-0 flex-1 sm:min-w-[220px] xl:w-56 xl:flex-none">
                 <Search
