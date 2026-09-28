@@ -754,20 +754,31 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const saveProperty = useCallback<StoreContextValue['saveProperty']>(
     async (property) => {
-      // Upload any newly added photos to Storage first: protected originals to
-      // the private bucket, safe derived previews + public photos to the public
-      // preview bucket. Throws on failure so no original is ever exposed.
-      const withStored = {
-        ...property,
-        photos: await preparePhotosForSave(supabase, property.id, property.photos),
-      }
+      // Upload new photos and move any existing photo whose lock state changed
+      // (private <-> public bucket). Nothing is deleted yet; on failure every
+      // object created so far is removed and the stored record is untouched.
+      const previousPhotos = properties.find((p) => p.id === property.id)?.photos ?? []
+      const prepared = await preparePhotosForSave(
+        supabase,
+        property.id,
+        property.photos,
+        previousPhotos,
+      )
+      const withStored = { ...property, photos: prepared.photos }
       // Public row is redacted; premium values go to the private table.
       const [pubRes, privRes] = await Promise.all([
         supabase.from('properties').upsert(propertyToRow(withStored)).select('*').maybeSingle(),
         supabase.from('property_private').upsert(propertyToPrivateRow(withStored)),
       ])
-      if (pubRes.error) throw new Error(pubRes.error.message)
-      if (privRes.error) throw new Error(privRes.error.message)
+      if (pubRes.error || privRes.error) {
+        // If neither row changed, the new objects are unreferenced: remove them.
+        // If only one row changed, it may point at them, so keep old AND new
+        // objects rather than risk a reference to a missing file.
+        if (pubRes.error && privRes.error) await prepared.rollback()
+        throw new Error((pubRes.error ?? privRes.error)!.message)
+      }
+      // Both rows now reference the new locations: drop superseded originals.
+      await prepared.commit()
       // Local state keeps the full record so the admin keeps seeing premium data.
       const mapped: Property = pubRes.data
         ? {
@@ -785,7 +796,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           : [mapped, ...prev]
       })
     },
-    [supabase],
+    [supabase, properties],
   )
 
   const deleteProperty = useCallback<StoreContextValue['deleteProperty']>(
