@@ -757,7 +757,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       // Upload new photos and move any existing photo whose lock state changed
       // (private <-> public bucket). Nothing is deleted yet; on failure every
       // object created so far is removed and the stored record is untouched.
-      const previousPhotos = properties.find((p) => p.id === property.id)?.photos ?? []
+      const existing = properties.find((p) => p.id === property.id)
+      const isCreate = !existing
+      const previousPhotos = existing?.photos ?? []
       const prepared = await preparePhotosForSave(
         supabase,
         property.id,
@@ -765,17 +767,43 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         previousPhotos,
       )
       const withStored = { ...property, photos: prepared.photos }
-      // Public row is redacted; premium values go to the private table.
-      const [pubRes, privRes] = await Promise.all([
-        supabase.from('properties').upsert(propertyToRow(withStored)).select('*').maybeSingle(),
-        supabase.from('property_private').upsert(propertyToPrivateRow(withStored)),
-      ])
-      if (pubRes.error || privRes.error) {
-        // If neither row changed, the new objects are unreferenced: remove them.
-        // If only one row changed, it may point at them, so keep old AND new
-        // objects rather than risk a reference to a missing file.
-        if (pubRes.error && privRes.error) await prepared.rollback()
-        throw new Error((pubRes.error ?? privRes.error)!.message)
+
+      // property_private.id REFERENCES properties.id, so the parent row must
+      // exist before the child is written. Both rows use the same property.id.
+      // Create uses insert (not upsert) so an ID collision fails instead of
+      // overwriting another listing.
+      const parentRow = propertyToRow(withStored)
+      const pubRes = isCreate
+        ? await supabase.from('properties').insert(parentRow).select('*').single()
+        : await supabase.from('properties').upsert(parentRow).select('*').maybeSingle()
+      if (pubRes.error) {
+        // No row changed, so every object this save created is unreferenced.
+        await prepared.rollback()
+        throw new Error(pubRes.error.message)
+      }
+
+      const privRes = await supabase
+        .from('property_private')
+        .upsert(propertyToPrivateRow(withStored))
+      if (privRes.error) {
+        if (isCreate) {
+          // Undo the half-created listing so it never shows in the marketplace.
+          const undo = await supabase.from('properties').delete().eq('id', property.id)
+          if (!undo.error) {
+            await prepared.rollback()
+            throw new Error(privRes.error.message)
+          }
+          // The parent row still exists and references the new files: keep them.
+          console.warn('[saveProperty] could not remove partial property', undo.error)
+          throw new Error(
+            `Property was only partly saved (${privRes.error.message}). Please delete it and try again.`,
+          )
+        }
+        // Edit: the parent row may now point at new files while the private row
+        // still points at the old ones, so keep both sets.
+        throw new Error(
+          `Property details were updated but private data failed to save (${privRes.error.message}). Please save again.`,
+        )
       }
       // Both rows now reference the new locations: drop superseded originals.
       await prepared.commit()
