@@ -165,34 +165,6 @@ export default function PropertiesPage() {
 
           {/* Dropdowns */}
           <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            <div className="flex flex-col gap-1.5">
-              <label
-              htmlFor="filter-neighborhood"
-                className="text-xs font-medium text-muted-foreground"
-              >
-                Neighborhood
-              </label>
-              <Select
-                value={neighborhood}
-                onValueChange={(v) => setNeighborhood(v ?? 'all')}
-              >
-                <SelectTrigger id="filter-neighborhood" className="h-11 w-full">
-                  <SelectValue placeholder="All Neighborhoods">
-                    {(value: string) =>
-                      value === 'all' ? 'All Neighborhoods' : value
-                    }
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Neighborhoods</SelectItem>
-                  {neighborhoods.map((n) => (
-                    <SelectItem key={n} value={n}>
-                      {n}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
 
             <div className="flex flex-col gap-1.5">
               <label
