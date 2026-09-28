@@ -10,6 +10,7 @@ import {
   Trash2,
 } from 'lucide-react'
 import { toast } from 'sonner'
+
 import {
   AdminHeader,
   AdminMobileNav,
@@ -102,6 +103,7 @@ async function callApi(
 
 export default function AdminUsersPage() {
   const router = useRouter()
+
   const {
     ready,
     currentUser,
@@ -110,8 +112,7 @@ export default function AdminUsersPage() {
     refresh,
   } = useStore()
 
-  const [dialog, setDialog] =
-    useState<DialogMode>(null)
+  const [dialog, setDialog] = useState<DialogMode>(null)
 
   // Client-side guard. The proxy already enforces admin + aal2 for every
   // /admin route server-side; this only avoids a flash of content while the
@@ -177,30 +178,39 @@ export default function AdminUsersPage() {
 
         <AdminMobileNav active="accounts" />
 
-        <main className="flex-1 px-4 py-6 sm:px-8">
-          <div className="mx-auto w-full max-w-[1500px]">
-            <div className="mb-6">
+        {/* Match Properties page layout */}
+        <main className="flex-1 px-4 py-8 sm:px-8">
+          <div className="w-full">
+            {/* Page heading */}
+            <div className="mb-7">
               <h1 className="font-display text-2xl font-bold tracking-tight text-foreground">
                 Account management
               </h1>
 
               <p className="mt-1 text-sm text-muted-foreground">
-                Create investor and administrator
-                accounts, update contact details,
-                trigger password resets, and remove
-                access. New accounts receive an
-                invitation email and set their own
+                Create investor and administrator accounts, update contact
+                details, trigger password resets, and remove access. New
+                accounts receive an invitation email and set their own
                 password — you never see or choose it.
               </p>
             </div>
 
-            <div className="overflow-hidden rounded-lg border border-border bg-card">
+            {/* Accounts table */}
+            <div className="w-full overflow-hidden rounded-lg border border-border bg-card shadow-sm">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Role</TableHead>
+                    <TableHead className="pl-4">
+                      Name
+                    </TableHead>
+
+                    <TableHead>
+                      Email
+                    </TableHead>
+
+                    <TableHead>
+                      Role
+                    </TableHead>
 
                     <TableHead className="hidden md:table-cell">
                       Company
@@ -229,7 +239,8 @@ export default function AdminUsersPage() {
 
                     return (
                       <TableRow key={u.id}>
-                        <TableCell className="font-medium text-foreground">
+                        {/* Name */}
+                        <TableCell className="pl-4 font-medium text-foreground">
                           {u.name}
 
                           {isSelf && (
@@ -239,11 +250,12 @@ export default function AdminUsersPage() {
                           )}
                         </TableCell>
 
+                        {/* Email */}
                         <TableCell className="text-muted-foreground">
                           {u.email}
                         </TableCell>
 
-                        {/* Role badges */}
+                        {/* Role */}
                         <TableCell>
                           {u.role === 'admin' ? (
                             <Badge className="gap-1 border-[#00D6A3]/40 bg-[#00D6A3]/15 text-[#00D6A3] hover:bg-[#00D6A3]/15">
@@ -257,15 +269,18 @@ export default function AdminUsersPage() {
                           )}
                         </TableCell>
 
+                        {/* Company */}
                         <TableCell className="hidden text-muted-foreground md:table-cell">
                           {u.company || '—'}
                         </TableCell>
 
+                        {/* Joined */}
                         <TableCell className="hidden text-muted-foreground lg:table-cell">
                           {formatDate(u.createdAt)}
                         </TableCell>
 
-                        <TableCell className="text-right">
+                        {/* Actions */}
+                        <TableCell className="pr-4 text-right">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button
@@ -334,6 +349,7 @@ export default function AdminUsersPage() {
         </main>
       </div>
 
+      {/* Create */}
       {dialog?.kind === 'create' && (
         <CreateDialog
           onClose={() => setDialog(null)}
@@ -344,6 +360,7 @@ export default function AdminUsersPage() {
         />
       )}
 
+      {/* Edit */}
       {dialog?.kind === 'edit' && (
         <EditDialog
           user={dialog.user}
@@ -355,6 +372,7 @@ export default function AdminUsersPage() {
         />
       )}
 
+      {/* Reset */}
       {dialog?.kind === 'reset' && (
         <ResetDialog
           user={dialog.user}
@@ -362,6 +380,7 @@ export default function AdminUsersPage() {
         />
       )}
 
+      {/* Delete */}
       {dialog?.kind === 'delete' && (
         <DeleteDialog
           user={dialog.user}
@@ -400,6 +419,7 @@ function CreateDialog({
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
+
     setError(null)
 
     if (!name.trim() || !email.trim()) {
@@ -465,12 +485,13 @@ function CreateDialog({
     >
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Add account</DialogTitle>
+          <DialogTitle>
+            Add account
+          </DialogTitle>
 
           <DialogDescription>
-            The new user receives an invitation email
-            to set up their account and password. You
-            never choose or see it.
+            The new user receives an invitation email to set up their account
+            and password. You never choose or see it.
           </DialogDescription>
         </DialogHeader>
 
@@ -599,8 +620,8 @@ function CreateDialog({
               />
 
               <p className="text-xs text-muted-foreground">
-                Creating an administrator requires
-                re-entering your own password.
+                Creating an administrator requires re-entering your own
+                password.
               </p>
             </div>
           )}
@@ -646,21 +667,28 @@ function EditDialog({
   onClose: () => void
   onDone: () => void
 }) {
-  const [name, setName] = useState(user.name)
+  const [name, setName] =
+    useState(user.name)
+
   const [phone, setPhone] = useState(
     coerceInitialPhone(user.phone),
   )
+
   const [phoneError, setPhoneError] =
     useState<string | null>(null)
+
   const [company, setCompany] = useState(
     user.company ?? '',
   )
+
   const [busy, setBusy] = useState(false)
+
   const [error, setError] =
     useState<string | null>(null)
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
+
     setError(null)
 
     if (!name.trim()) {
@@ -700,6 +728,7 @@ function EditDialog({
     }
 
     toast.success('Account updated')
+
     onDone()
   }
 
@@ -715,8 +744,7 @@ function EditDialog({
           </DialogTitle>
 
           <DialogDescription>
-            Update contact details. Email and role
-            can&apos;t be changed here.
+            Update contact details. Email and role can&apos;t be changed here.
           </DialogDescription>
         </DialogHeader>
 
@@ -836,13 +864,18 @@ function ResetDialog({
   user: User
   onClose: () => void
 }) {
-  const [password, setPassword] = useState('')
-  const [busy, setBusy] = useState(false)
+  const [password, setPassword] =
+    useState('')
+
+  const [busy, setBusy] =
+    useState(false)
+
   const [error, setError] =
     useState<string | null>(null)
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
+
     setError(null)
 
     if (!password) {
@@ -889,9 +922,8 @@ function ResetDialog({
           </DialogTitle>
 
           <DialogDescription>
-            {user.name} will receive an email with a
-            secure link to choose a new password. Their
-            role and two-factor setup are unaffected.
+            {user.name} will receive an email with a secure link to choose a
+            new password. Their role and two-factor setup are unaffected.
           </DialogDescription>
         </DialogHeader>
 
@@ -955,13 +987,18 @@ function DeleteDialog({
   onClose: () => void
   onDone: () => void
 }) {
-  const [password, setPassword] = useState('')
-  const [busy, setBusy] = useState(false)
+  const [password, setPassword] =
+    useState('')
+
+  const [busy, setBusy] =
+    useState(false)
+
   const [error, setError] =
     useState<string | null>(null)
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
+
     setError(null)
 
     if (!password) {
@@ -990,6 +1027,7 @@ function DeleteDialog({
     }
 
     toast.success('Account deleted')
+
     onDone()
   }
 
@@ -1011,10 +1049,9 @@ function DeleteDialog({
           </div>
 
           <DialogDescription className="pt-1">
-            This permanently removes {user.email} and
-            revokes their access. Offers and showings
-            they submitted are kept for your records.
-            This can&apos;t be undone.
+            This permanently removes {user.email} and revokes their access.
+            Offers and showings they submitted are kept for your records. This
+            can&apos;t be undone.
           </DialogDescription>
         </DialogHeader>
 
