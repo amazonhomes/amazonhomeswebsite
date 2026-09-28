@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { notifyTeamOfLead } from '@/lib/lead-email'
 import { checkRateLimit, clientIp } from '@/lib/rate-limit'
 import { validatePhoneField } from '@/lib/phone'
+import { validateShowingSlot } from '@/lib/showing-schedule'
 
 /**
  * Showing-request submission endpoint. Distributed rate limiting + server-side
@@ -46,6 +47,12 @@ export async function POST(req: Request) {
   const phoneCheck = validatePhoneField(body.phone, { required: true })
   if (!phoneCheck.ok) {
     return NextResponse.json({ ok: false, error: phoneCheck.error }, { status: 400 })
+  }
+  // Appointment is chosen as Detroit wall time; the server re-derives the
+  // instant and rejects malformed or past slots regardless of the client.
+  const slot = validateShowingSlot(body.preferredDate, body.preferredSlot)
+  if (!slot.ok) {
+    return NextResponse.json({ ok: false, error: slot.error }, { status: 400 })
   }
 
 

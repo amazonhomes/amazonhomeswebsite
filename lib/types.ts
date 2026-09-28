@@ -89,7 +89,10 @@ export interface ShowingRequest {
   company: string
   email: string
   phone: string
+  /** Legacy free-text preference; for new requests, a readable copy of preferredAt. */
   preferredTime: string
+  /** Requested appointment instant (UTC ISO); null on legacy free-text records. */
+  preferredAt: string | null
   message: string
   status: 'new' | 'scheduled' | 'completed'
   createdAt: string

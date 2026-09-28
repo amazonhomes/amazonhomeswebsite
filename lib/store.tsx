@@ -79,7 +79,12 @@ interface StoreContextValue {
     input: Omit<Offer, 'id' | 'status' | 'createdAt'>,
   ) => Promise<{ ok: boolean; error?: string }>
   submitShowing: (
-    input: Omit<ShowingRequest, 'id' | 'status' | 'createdAt'>,
+    input: Omit<ShowingRequest, 'id' | 'status' | 'createdAt' | 'preferredTime' | 'preferredAt'> & {
+      /** "YYYY-MM-DD", interpreted as a Detroit calendar date. */
+      preferredDate: string
+      /** "HH:mm" slot, interpreted as Detroit wall-clock time. */
+      preferredSlot: string
+    },
   ) => Promise<{ ok: boolean; error?: string }>
   submitInquiry: (
     input: Omit<Inquiry, 'id' | 'status' | 'createdAt' | 'replies' | 'readAt'>,
@@ -182,7 +187,8 @@ function mapShowing(r: any): ShowingRequest {
     company: r.company,
     email: r.email,
     phone: r.phone,
-    preferredTime: r.preferred_time,
+    preferredTime: r.preferred_time ?? '',
+    preferredAt: r.preferred_at ?? null,
     message: r.message,
     status: r.status,
     createdAt: r.created_at,

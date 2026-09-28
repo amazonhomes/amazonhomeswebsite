@@ -307,7 +307,7 @@ export async function notifyTeamOfLead(
         { label: 'Name', value: escapeHtml(lead.name) },
         { label: 'Email', value: escapeHtml(lead.email) },
         { label: 'Phone', value: lead.phone ? escapeHtml(lead.phone) : 'Not provided' },
-        { label: 'Preferred Time', value: lead.preferredTime ? escapeHtml(lead.preferredTime) : 'Flexible / Not specified' },
+        { label: 'Preferred Showing', value: lead.preferredTime ? escapeHtml(lead.preferredTime) : 'Flexible / Not specified' },
       ]
       messageLabel = 'MESSAGE / NOTES'
       messageRaw = lead.message || 'No additional notes'

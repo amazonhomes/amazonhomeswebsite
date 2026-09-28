@@ -49,6 +49,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { formatCurrency, formatDate, formatDateTime } from '@/lib/format'
+import { showingPreferenceText } from '@/lib/showing-schedule'
 import { useStore } from '@/lib/store'
 import type {
   Inquiry,
@@ -701,11 +702,17 @@ function AdminDashboard() {
                   },
                   {
                     key: 'preferred',
-                    header: 'Preferred time',
+                    header: 'Requested showing',
                     headClassName: 'hidden md:table-cell',
-                    cellClassName:
-                      'hidden md:table-cell text-muted-foreground',
-                    cell: (s) => s.preferredTime,
+                    cellClassName: 'hidden md:table-cell',
+                    cell: (s) =>
+                      s.preferredAt ? (
+                        <span className="whitespace-nowrap font-medium text-foreground">
+                          {showingPreferenceText(s)}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">{showingPreferenceText(s)}</span>
+                      ),
                   },
                   {
                     key: 'status',
@@ -744,9 +751,7 @@ function AdminDashboard() {
                         message: `Showing request for ${
                           propertyMap[s.propertyId]?.address ??
                           'a property'
-                        }. Preferred time: ${
-                          s.preferredTime || 'not specified'
-                        }.${s.message ? ` Message: ${s.message}` : ''}`,
+                       }. Preferred showing: ${showingPreferenceText(s, 'long')}.${s.message ? ` Message: ${s.message}` : ''}`,
                       })
                     }
                   />

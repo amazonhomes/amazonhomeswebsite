@@ -280,6 +280,7 @@ export const seedShowings: ShowingRequest[] = [
     email: 'investor@example.com',
     phone: '(248) 555-0142',
     preferredTime: 'Friday morning',
+    preferredAt: null,
     message: 'Would like to bring my contractor.',
     status: 'new',
     createdAt: pastDate(1),
