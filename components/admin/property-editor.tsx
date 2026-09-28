@@ -229,7 +229,10 @@ export function PropertyEditor({
     submittingRef.current = true
     setSaving(true)
     try {
-      await saveProperty({ ...draft, ...numbers, highlights })
+      await saveProperty(
+        { ...draft, ...numbers, highlights },
+        property ? { mode: 'edit', original: property } : { mode: 'create' },
+      )
       toast.success(property ? 'Property updated' : 'Property added')
       onOpenChange(false)
     } catch (err) {

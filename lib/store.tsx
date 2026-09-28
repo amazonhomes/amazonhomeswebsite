@@ -36,6 +36,12 @@ interface AuthResult {
   role?: User['role']
 }
 
+/** How the editor was opened. `original` is the record the edit started from:
+ *  its id is the row to update and its photos are the lock-change baseline. */
+export type SavePropertyOptions =
+  | { mode: 'create' }
+  | { mode: 'edit'; original: Property }
+
 interface StoreContextValue {
   ready: boolean
   currentUser: User | null
@@ -86,7 +92,7 @@ interface StoreContextValue {
     propertyId: string,
   ) => Promise<{ ok: boolean; needsAuth?: boolean; error?: string }>
   // admin actions
-  saveProperty: (property: Property) => Promise<void>
+  saveProperty: (property: Property, options: SavePropertyOptions) => Promise<void>
   deleteProperty: (propertyId: string) => Promise<void>
   updateOfferStatus: (id: string, status: Offer['status']) => Promise<void>
   updateShowingStatus: (id: string, status: ShowingRequest['status']) => Promise<void>
@@ -753,13 +759,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   /* ----------------------------- admin actions ---------------------------- */
 
   const saveProperty = useCallback<StoreContextValue['saveProperty']>(
-    async (property) => {
+    async (draft, options) => {
+      // The caller states the mode explicitly; it is never inferred from the
+      // (possibly still loading) client-side properties list.
+      const isCreate = options.mode === 'create'
+      // An edit always targets the ID of the record the editor was opened with.
+      const property: Property = isCreate ? draft : { ...draft, id: options.original.id }
+      const previousPhotos = isCreate ? [] : options.original.photos
+
       // Upload new photos and move any existing photo whose lock state changed
       // (private <-> public bucket). Nothing is deleted yet; on failure every
       // object created so far is removed and the stored record is untouched.
-      const existing = properties.find((p) => p.id === property.id)
-      const isCreate = !existing
-      const previousPhotos = existing?.photos ?? []
       const prepared = await preparePhotosForSave(
         supabase,
         property.id,
@@ -770,12 +780,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
       // property_private.id REFERENCES properties.id, so the parent row must
       // exist before the child is written. Both rows use the same property.id.
-      // Create uses insert (not upsert) so an ID collision fails instead of
-      // overwriting another listing.
+      // Create uses insert so an ID collision fails instead of overwriting.
+      // Edit uses update, which can never create a row; .single() turns
+      // "no row matched" into an error instead of a silent no-op.
       const parentRow = propertyToRow(withStored)
       const pubRes = isCreate
         ? await supabase.from('properties').insert(parentRow).select('*').single()
-        : await supabase.from('properties').upsert(parentRow).select('*').maybeSingle()
+        : await supabase
+            .from('properties')
+            .update(parentRow)
+            .eq('id', property.id)
+            .select('*')
+            .single()
       if (pubRes.error) {
         // No row changed, so every object this save created is unreferenced.
         await prepared.rollback()
@@ -824,7 +840,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           : [mapped, ...prev]
       })
     },
-    [supabase, properties],
+    [supabase],
   )
 
   const deleteProperty = useCallback<StoreContextValue['deleteProperty']>(
