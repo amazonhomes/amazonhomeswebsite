@@ -44,12 +44,6 @@ export function BadgedPropertyCard({ property }: { property: Property }) {
               New Listing
             </span>
           )}
-          {isHot && (
-            <span className="inline-flex items-center gap-1 rounded-sm bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-700 shadow-sm">
-              <Flame className="size-3.5 fill-red-500 text-orange-500" />
-              Hot · {count} {count === 1 ? "offer" : "offers"}
-            </span>
-          )}
         </div>
       )}
       <PropertyCard property={property} />
