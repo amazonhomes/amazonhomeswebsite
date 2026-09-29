@@ -30,6 +30,7 @@ import {
   zonedInputToUtcIso,
 } from '@/lib/timezone'
 import type { Property, PropertyStatus, PropertyType } from '@/lib/types'
+import { propertyStatusLabel } from '@/components/status-badge'
 
 const propertyTypes: PropertyType[] = [
   'Single Family',
@@ -402,12 +403,14 @@ export function PropertyEditor({
             <Field label="Status">
               <Select value={draft.status} onValueChange={(v) => set('status', v as PropertyStatus)}>
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue>
+                    {(value: PropertyStatus) => propertyStatusLabel(value)}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {statuses.map((s) => (
                     <SelectItem key={s} value={s}>
-                      {s}
+                      {propertyStatusLabel(s)}
                     </SelectItem>
                   ))}
                 </SelectContent>

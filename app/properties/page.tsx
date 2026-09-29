@@ -35,7 +35,7 @@ function typeLabel(value: string) {
 
 function statusLabel(value: string) {
   if (value === 'all') return 'All Statuses'
-  if (value === 'under-contract') return 'Under contract'
+  if (value === 'under-contract') return 'Pending'
   return value.charAt(0).toUpperCase() + value.slice(1)
 }
 
@@ -229,11 +229,7 @@ export default function PropertiesPage() {
                 <SelectContent>
                   {statuses.map((s) => (
                     <SelectItem key={s} value={s}>
-                      {s === 'all'
-                        ? 'All Statuses'
-                        : s === 'under-contract'
-                          ? 'Under contract'
-                          : s.charAt(0).toUpperCase() + s.slice(1)}
+                     {statusLabel(s)}
                     </SelectItem>
                   ))}
                 </SelectContent>

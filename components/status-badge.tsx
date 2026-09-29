@@ -7,7 +7,7 @@ const config: Record<PropertyStatus, { label: string; className: string }> = {
     className: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400',
   },
   'under-contract': {
-    label: 'Under Contract',
+    label: 'Pending',
     className: 'bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-400',
   },
   sold: {
@@ -18,6 +18,9 @@ const config: Record<PropertyStatus, { label: string; className: string }> = {
     label: 'Archived',
     className: 'bg-muted text-muted-foreground',
   },
+}
+export function propertyStatusLabel(status: PropertyStatus) {
+  return config[status]?.label ?? status
 }
 
 export function StatusBadge({
