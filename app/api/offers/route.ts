@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { notifyTeamOfLead } from '@/lib/lead-email'
 import { checkRateLimit, clientIp } from '@/lib/rate-limit'
 import { validatePhoneField } from '@/lib/phone'
+import { parsePurchaseMethod, purchaseMethodLabel } from '@/lib/rehab'
 
 /**
  * Offer submission endpoint.
@@ -51,13 +52,34 @@ export async function POST(req: Request) {
   if (!Number.isFinite(amountRaw) || amountRaw <= 0 || amountRaw > MAX_AMOUNT) {
     return NextResponse.json({ ok: false, error: 'Enter a valid offer amount.' }, { status: 400 })
   }
-const phoneCheck = validatePhoneField(body.phone, { required: true })
+
+  // Phone is required on offers and must be a valid, country-aware number.
+  // The client validates the same way; this is the authoritative check.
+  const phoneCheck = validatePhoneField(body.phone, { required: true })
   if (!phoneCheck.ok) {
     return NextResponse.json({ ok: false, error: phoneCheck.error }, { status: 400 })
   }
-  
+
+  const purchaseMethod = parsePurchaseMethod(body.purchaseMethod)
+  if (!purchaseMethod) {
+    return NextResponse.json({ ok: false, error: 'Select a method of purchase.' }, { status: 400 })
+  }
+  const purchaseMethodOther = purchaseMethod === 'other' ? str(body.purchaseMethodOther, MAX.text) : ''
+  if (purchaseMethod === 'other' && !purchaseMethodOther) {
+    return NextResponse.json(
+      { ok: false, error: 'Please specify your method of purchase.' },
+      { status: 400 },
+    )
+  }
+  const specialTerms = str(body.specialTerms, MAX.notes)
+  const notes = str(body.notes, MAX.notes)
 
   const supabase = await createClient()
+
+  // Ownership is derived from the authenticated session — never trusted from
+  // the request body. Anonymous submissions keep user_id null; a signed-in
+  // investor's offer is always attributed to their own uid. The offers RLS
+  // INSERT policy enforces the same rule as a second layer of defense.
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -99,13 +121,17 @@ const phoneCheck = validatePhoneField(body.phone, { required: true })
     email,
     phone: str(body.phone, MAX.phone),
     amount: Math.round(amountRaw),
-    notes: str(body.notes, MAX.notes),
+    notes,
+    purchase_method: purchaseMethod,
+    purchase_method_other: purchaseMethodOther || null,
+    special_terms: specialTerms || null,
   })
 
   if (error) {
     console.log('[v0] Offer insert failed:', error.message)
     return NextResponse.json({ ok: false, error: 'Could not submit your offer.' }, { status: 400 })
   }
+
   const origin = new URL(req.url).origin
   after(() =>
     notifyTeamOfLead(supabase, origin, {
@@ -116,7 +142,9 @@ const phoneCheck = validatePhoneField(body.phone, { required: true })
       company: str(body.company, MAX.text) || null,
       propertyId,
       amount: Math.round(amountRaw),
-      message: str(body.notes, MAX.notes) || null,
+      message: notes || null,
+      purchaseMethod: purchaseMethodLabel(purchaseMethod, purchaseMethodOther),
+      specialTerms: specialTerms || null,
     }),
   )
 

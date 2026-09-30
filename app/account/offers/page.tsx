@@ -26,6 +26,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { Separator } from '@/components/ui/separator'
+import { purchaseMethodLabel } from '@/lib/rehab'
 import { useStore } from '@/lib/store'
 import {
   OFFER_STATUS_BADGE,
@@ -352,10 +353,32 @@ function OfferDetailDialog({
             </div>
           </div>
 
+          {purchaseMethodLabel(offer.purchaseMethod, offer.purchaseMethodOther) && (
+            <div>
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                Method of purchase
+              </p>
+              <p className="mt-1 text-sm text-foreground">
+                {purchaseMethodLabel(offer.purchaseMethod, offer.purchaseMethodOther)}
+              </p>
+            </div>
+          )}
+
+          {offer.specialTerms && (
+            <div>
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                Special stipulations / terms
+              </p>
+              <p className="mt-1 whitespace-pre-wrap text-sm text-foreground">
+                {offer.specialTerms}
+              </p>
+            </div>
+          )}
+
           {offer.notes && (
             <div>
               <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                Your notes / terms
+                {offer.purchaseMethod ? 'Your notes' : 'Your notes / terms'}
               </p>
               <p className="mt-1 whitespace-pre-wrap text-sm text-foreground">
                 {offer.notes}

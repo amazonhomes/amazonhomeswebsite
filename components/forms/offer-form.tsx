@@ -9,8 +9,9 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { coerceInitialPhone, validatePhoneField } from '@/lib/phone'
+import { PURCHASE_METHODS } from '@/lib/rehab'
 import { useStore } from '@/lib/store'
-import type { Property } from '@/lib/types'
+import type { Property, PurchaseMethod } from '@/lib/types'
 
 export function OfferForm({
   property,
@@ -20,9 +21,12 @@ export function OfferForm({
   onDone?: () => void
 }) {
   const { currentUser, submitOffer } = useStore()
-   const router = useRouter()
+  const router = useRouter()
   const [amount, setAmount] = useState('')
   const [notes, setNotes] = useState('')
+  const [purchaseMethod, setPurchaseMethod] = useState<PurchaseMethod | null>(null)
+  const [purchaseMethodOther, setPurchaseMethodOther] = useState('')
+  const [specialTerms, setSpecialTerms] = useState('')
   const [name, setName] = useState(currentUser?.name ?? '')
   const [company, setCompany] = useState(currentUser?.company ?? '')
   const [email, setEmail] = useState(currentUser?.email ?? '')
@@ -37,6 +41,14 @@ export function OfferForm({
     const numeric = Number(amount.replace(/[^0-9.]/g, ''))
     if (!numeric || numeric <= 0) {
       toast.error('Enter a valid offer amount.')
+      return
+    }
+    if (!purchaseMethod) {
+      toast.error('Select a method of purchase.')
+      return
+    }
+    if (purchaseMethod === 'other' && !purchaseMethodOther.trim()) {
+      toast.error('Please specify your method of purchase.')
       return
     }
     const phoneCheck = validatePhoneField(phone, { required: true })
@@ -54,6 +66,9 @@ export function OfferForm({
       phone: phoneCheck.value,
       amount: numeric,
       notes,
+      purchaseMethod,
+      purchaseMethodOther: purchaseMethod === 'other' ? purchaseMethodOther.trim() : null,
+      specialTerms: specialTerms.trim() || null,
     })
     setSubmitting(false)
     if (!res.ok) {
@@ -61,7 +76,7 @@ export function OfferForm({
       return
     }
     toast.success('Offer submitted', {
-       description: currentUser
+      description: currentUser
         ? 'Track its status anytime from My Offers in your account.'
         : `Our team will follow up on your offer for ${property.address}.`,
       // Signed-in investors get a direct path to track the offer they just made.
@@ -71,9 +86,12 @@ export function OfferForm({
             onClick: () => router.push('/account/offers'),
           }
         : undefined,
-        })
+    })
     setAmount('')
     setNotes('')
+    setPurchaseMethod(null)
+    setPurchaseMethodOther('')
+    setSpecialTerms('')
     onDone?.()
   }
 
@@ -107,7 +125,6 @@ export function OfferForm({
           <Label htmlFor="offer-phone">Phone</Label>
           <PhoneInput
             id="offer-phone"
-            
             value={phone}
             onChange={(v) => {
               setPhone(v)
@@ -135,14 +152,59 @@ export function OfferForm({
           required
         />
       </div>
+      <fieldset className="flex flex-col gap-2">
+        <legend className="mb-1.5 text-sm font-medium leading-none">Method of purchase</legend>
+        <div className="grid grid-cols-3 gap-2">
+          {PURCHASE_METHODS.map((m) => (
+            <label
+              key={m.value}
+              className="flex cursor-pointer items-center justify-center gap-2 rounded-md border border-input px-3 py-2 text-sm transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/5 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring"
+            >
+              <input
+                type="radio"
+                name="offer-purchase-method"
+                value={m.value}
+                checked={purchaseMethod === m.value}
+                onChange={() => setPurchaseMethod(m.value)}
+                className="accent-primary"
+                required
+              />
+              {m.label}
+            </label>
+          ))}
+        </div>
+        {purchaseMethod === 'other' && (
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="offer-purchase-other">Specify method of purchase</Label>
+            <Input
+              id="offer-purchase-other"
+              value={purchaseMethodOther}
+              onChange={(e) => setPurchaseMethodOther(e.target.value)}
+              placeholder="e.g. Seller financing, 1031 exchange"
+              maxLength={500}
+              required
+            />
+          </div>
+        )}
+      </fieldset>
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="offer-notes">Notes / terms</Label>
+        <Label htmlFor="offer-special-terms">Special terms</Label>
+        <Textarea
+          id="offer-special-terms"
+          value={specialTerms}
+          onChange={(e) => setSpecialTerms(e.target.value)}
+          placeholder="Optional: close timeline, contingencies, earnest money…"
+          rows={3}
+        />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="offer-notes">Notes</Label>
         <Textarea
           id="offer-notes"
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
-          placeholder="Cash, financing, close timeline, contingencies…"
-          rows={3}
+          placeholder="Optional"
+          rows={2}
         />
       </div>
       <Button type="submit" size="lg">

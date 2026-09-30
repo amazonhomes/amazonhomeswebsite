@@ -261,6 +261,8 @@ export async function notifyTeamOfLead(
     amount?: number
     preferredTime?: string | null
     message?: string | null
+    purchaseMethod?: string | null
+    specialTerms?: string | null
   },
 ): Promise<void> {
   try {
@@ -304,10 +306,20 @@ export async function notifyTeamOfLead(
       rows = [
         { label: 'Property Address', value: property ? escapeHtml(property) : 'Not specified' },
         { label: 'Offer Amount', value: formattedAmount || 'Not specified' },
+        {
+          label: 'Method of Purchase',
+          value: lead.purchaseMethod ? escapeHtml(lead.purchaseMethod) : 'Not specified',
+        },
         ...contactRows,
       ]
-      messageLabel = 'MESSAGE / NOTES'
-      messageRaw = lead.message || 'No additional notes'
+      messageLabel = 'SPECIAL TERMS / NOTES'
+      messageRaw =
+        [
+          lead.specialTerms ? `Special terms: ${lead.specialTerms}` : '',
+          lead.message ? `Notes: ${lead.message}` : '',
+        ]
+          .filter(Boolean)
+          .join('\n\n') || 'No special terms or notes'
     } else if (lead.type === 'showing') {
       subject = `New Showing Request · ${property ?? 'Property'}`.slice(0, 200)
       title = 'New Showing Request'

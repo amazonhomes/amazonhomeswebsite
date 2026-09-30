@@ -50,6 +50,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { formatCurrency, formatDate, formatDateTime } from '@/lib/format'
+import { purchaseMethodLabel } from '@/lib/rehab'
 import { showingPreferenceText } from '@/lib/showing-schedule'
 import { useStore } from '@/lib/store'
 import type {
@@ -605,6 +606,9 @@ function AdminDashboard() {
                     o.phone?.replace(/\D/g, ''),
                     o.amount,
                     formatCurrency(o.amount),
+                     purchaseMethodLabel(o.purchaseMethod, o.purchaseMethodOther),
+                    o.specialTerms,
+                    o.notes,
                     o.status,
                   ]
                     .filter((v) => v !== null && v !== undefined && v !== '')
@@ -661,11 +665,11 @@ function AdminDashboard() {
                     cell: (o) => formatCurrency(o.amount),
                   },
                   {
-                    key: 'status',
-                    header: 'Status',
-                    cell: (o) => (
-                      <StatusPill status={o.status} />
-                    ),
+                     key: 'terms',
+                    header: 'Terms',
+                    headClassName: 'hidden md:table-cell',
+                    cellClassName: 'hidden md:table-cell max-w-64 align-top text-xs',
+                    cell: (o) => <OfferTermsCell offer={o} />,
                   },
                   {
                     key: 'received',
@@ -699,7 +703,13 @@ function AdminDashboard() {
                         )} on ${
                           propertyMap[o.propertyId]?.address ??
                           'a property'
-                        }.${o.notes ? ` Notes: ${o.notes}` : ''}`,
+                        }.${
+                          purchaseMethodLabel(o.purchaseMethod, o.purchaseMethodOther)
+                            ? ` Method of purchase: ${purchaseMethodLabel(o.purchaseMethod, o.purchaseMethodOther)}.`
+                            : ''
+                        }${o.specialTerms ? ` Special stipulations / terms: ${o.specialTerms}` : ''}${
+                          o.notes ? ` Notes: ${o.notes}` : ''
+                        }`,
                       })
                     }
                     onDelete={() => confirmDeleteOffer(o)}
@@ -1299,6 +1309,38 @@ function EmptyState({
   return (
     <div className="rounded-xl border border-dashed border-border p-12 text-center text-sm text-muted-foreground">
       {label}
+    </div>
+  )
+}
+
+/** Structured offer terms. Legacy offers (pre-structured fields) fall back to notes only. */
+function OfferTermsCell({ offer }: { offer: Offer }) {
+  const method = purchaseMethodLabel(offer.purchaseMethod, offer.purchaseMethodOther)
+  const hasDetails = Boolean(offer.specialTerms || offer.notes)
+  return (
+    <div className="flex flex-col gap-1">
+      <p className="text-foreground">{method ?? <span className="text-muted-foreground">—</span>}</p>
+      {hasDetails && (
+        <details className="group">
+          <summary className="cursor-pointer text-muted-foreground underline-offset-2 hover:text-foreground hover:underline">
+            View terms
+          </summary>
+          <div className="mt-1.5 flex flex-col gap-2 whitespace-pre-wrap break-words text-foreground">
+            {offer.specialTerms && (
+              <div>
+                <p className="font-medium text-muted-foreground">Special stipulations / terms</p>
+                <p>{offer.specialTerms}</p>
+              </div>
+            )}
+            {offer.notes && (
+              <div>
+                <p className="font-medium text-muted-foreground">Notes</p>
+                <p>{offer.notes}</p>
+              </div>
+            )}
+          </div>
+        </details>
+      )}
     </div>
   )
 }

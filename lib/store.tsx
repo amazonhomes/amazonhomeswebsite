@@ -13,6 +13,7 @@ import {
 import { createClient } from '@/lib/supabase/client'
 import { getClientAuthCallbackUrl } from '@/lib/site'
 import { preparePhotosForSave } from '@/lib/property-images'
+import { parsePurchaseMethod, parseRehabLevel } from '@/lib/rehab'
 import type {
   AuditLog,
   Inquiry,
@@ -145,7 +146,7 @@ function mapProperty(r: any): Property {
     zip: r.zip,
     price: Number(r.price),
     arv: Number(r.arv),
-    estimatedRehab: Number(r.estimated_rehab),
+    rehabLevel: null,
     type: r.type,
     status: r.status,
     beds: Number(r.beds),
@@ -175,6 +176,9 @@ function mapOffer(r: any): Offer {
     phone: r.phone,
     amount: Number(r.amount),
     notes: r.notes,
+    purchaseMethod: parsePurchaseMethod(r.purchase_method),
+    purchaseMethodOther: r.purchase_method_other ?? null,
+    specialTerms: r.special_terms ?? null,
     status: r.status,
     createdAt: r.created_at,
   }
@@ -300,7 +304,9 @@ function propertyToPrivateRow(p: Property) {
   return {
     id: p.id,
     arv: p.arv,
-    estimated_rehab: p.estimatedRehab,
+    // The legacy numeric estimated_rehab column is intentionally not written:
+    // upsert leaves existing values untouched and new rows take its default.
+    rehab_level: p.rehabLevel,
     showing_info: p.showingInfo,
     photos: p.photos ?? [],
   }
@@ -316,7 +322,7 @@ function mergePrivate(properties: Property[], privateRows: any[]): Property[] {
     return {
       ...p,
       arv: Number(pr.arv),
-      estimatedRehab: Number(pr.estimated_rehab),
+      rehabLevel: parseRehabLevel(pr.rehab_level),
       showingInfo: pr.showing_info ?? '',
       photos: Array.isArray(pr.photos) && pr.photos.length ? pr.photos : p.photos,
     }
@@ -836,7 +842,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         ? {
             ...mapProperty(pubRes.data),
             arv: withStored.arv,
-            estimatedRehab: withStored.estimatedRehab,
+            rehabLevel: withStored.rehabLevel,
             showingInfo: withStored.showingInfo,
             photos: withStored.photos,
           }

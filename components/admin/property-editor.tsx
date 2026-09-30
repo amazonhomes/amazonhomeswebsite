@@ -23,6 +23,7 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import { LockedImage } from '@/components/locked-image'
 import { formatCurrency } from '@/lib/format'
+import { parseRehabLevel, REHAB_LEVELS } from '@/lib/rehab'
 import { useStore } from '@/lib/store'
 import {
   BUSINESS_TZ_LABEL,
@@ -44,14 +45,13 @@ const propertyTypes: PropertyType[] = [
 
 const statuses: PropertyStatus[] = ['available', 'under-contract', 'sold', 'archived']
 
-const numericKeys = ['price', 'arv', 'estimatedRehab', 'beds', 'baths', 'sqft', 'yearBuilt'] as const
+const numericKeys = ['price', 'arv', 'beds', 'baths', 'sqft', 'yearBuilt'] as const
 type NumericKey = (typeof numericKeys)[number]
 type NumericText = Record<NumericKey, string>
 
 const requiredNumeric: Record<NumericKey, boolean> = {
   price: true,
   arv: true,
-  estimatedRehab: true,
   beds: false,
   baths: false,
   sqft: false,
@@ -61,7 +61,6 @@ const requiredNumeric: Record<NumericKey, boolean> = {
 const numericLabels: Record<NumericKey, string> = {
   price: 'Price',
   arv: 'ARV',
-  estimatedRehab: 'Est. rehab',
   beds: 'Beds',
   baths: 'Baths',
   sqft: 'Sqft',
@@ -90,7 +89,7 @@ function emptyDraft(): Property {
     zip: '',
     price: 0,
     arv: 0,
-    estimatedRehab: 0,
+    rehabLevel: null,
     type: 'Single Family',
     status: 'available',
     beds: 3,
@@ -141,10 +140,9 @@ export function PropertyEditor({
     }
   }
 
-  const spreadInputs = [numText.arv, numText.price, numText.estimatedRehab].map(parseNumeric)
-  const estimatedSpread = spreadInputs.every((n) => n !== null)
-    ? (spreadInputs[0] as number) - (spreadInputs[1] as number) - (spreadInputs[2] as number)
-    : null
+  const arvNum = parseNumeric(numText.arv)
+  const priceNum = parseNumeric(numText.price)
+  const estimatedSpread = arvNum !== null && priceNum !== null ? arvNum - priceNum : null
 
   function set<K extends keyof Property>(key: K, value: Property[K]) {
     setDraft((d) => ({ ...d, [key]: value }))
@@ -214,6 +212,11 @@ export function PropertyEditor({
         return
       }
       numbers[key] = parsed ?? 0
+    }
+
+    if (!draft.rehabLevel) {
+      toast.error('Estimated rehab is required. Choose Light, Medium, or Large.')
+      return
     }
 
     // A protected photo with an empty url is the redacted public copy; saving
@@ -375,11 +378,25 @@ export function PropertyEditor({
               <Input {...numInputProps('arv')} />
             </Field>
             <Field label="Est. rehab">
-              <Input {...numInputProps('estimatedRehab')} />
+              <Select
+                value={draft.rehabLevel ?? undefined}
+                onValueChange={(v) => set('rehabLevel', parseRehabLevel(v))}
+              >
+                <SelectTrigger aria-label="Estimated rehab">
+                  <SelectValue placeholder="Select scope" />
+                </SelectTrigger>
+                <SelectContent>
+                  {REHAB_LEVELS.map((l) => (
+                    <SelectItem key={l.value} value={l.value}>
+                      {l.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </Field>
           </div>
           <p className="-mt-2 text-sm text-muted-foreground" aria-live="polite">
-            Estimated spread (ARV − price − rehab):{' '}
+            Estimated spread (ARV − price):{' '}
             <span className="font-semibold text-foreground">
               {estimatedSpread === null ? '—' : formatCurrency(estimatedSpread)}
             </span>

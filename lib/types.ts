@@ -9,6 +9,10 @@ export type PropertyType =
   | 'Tudor'
   | 'Fixer Upper'
 
+export type RehabLevel = 'light' | 'medium' | 'large'
+
+export type PurchaseMethod = 'cash' | 'financing' | 'other'
+
 export interface PropertyPhoto {
   /** Full-resolution image. For protected photos this is only present for
    *  authenticated investors (served from the RLS-protected `property_private`
@@ -32,7 +36,8 @@ export interface Property {
   zip: string
   price: number
   arv: number // after-repair value
-  estimatedRehab: number
+  /** Categorical rehab scope. Null for listings saved before the category existed. */
+  rehabLevel: RehabLevel | null
   type: PropertyType
   status: PropertyStatus
   beds: number
@@ -77,6 +82,10 @@ export interface Offer {
   phone: string
   amount: number
   notes: string
+  /** Null on offers submitted before structured terms existed. */
+  purchaseMethod: PurchaseMethod | null
+  purchaseMethodOther: string | null
+  specialTerms: string | null
   status: 'new' | 'reviewed' | 'accepted' | 'declined'
   createdAt: string
 }

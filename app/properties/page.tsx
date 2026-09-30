@@ -101,7 +101,7 @@ export default function PropertiesPage() {
       case 'spread':
         list = [...list].sort(
           (a, b) =>
-            b.arv - b.price - b.estimatedRehab - (a.arv - a.price - a.estimatedRehab),
+            b.arv - b.price - (a.arv - a.price),
         )
         break
       default:
