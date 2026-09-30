@@ -10,7 +10,7 @@ import {
   LineChart,
   Mail,
   MoreHorizontal,
-  Pencil,
+  Eye,
   Plus,
   Star,
   Trash2,
@@ -35,6 +35,12 @@ import { MessagesInbox } from '@/components/admin/messages-inbox'
 import type { Notification } from '@/components/admin/notification-bell'
 import { PropertiesTable } from '@/components/admin/properties-table'
 import { PropertyEditor } from '@/components/admin/property-editor'
+import {
+  InvestorDetailsDialog,
+  OfferDetailsDialog,
+  ShowingDetailsDialog,
+  StatusPill,
+} from '@/components/admin/record-details'
 import { Loader } from '@/components/loader'
 import { StatusBadge } from '@/components/status-badge'
 import { Badge } from '@/components/ui/badge'
@@ -119,16 +125,6 @@ const INQUIRY_STATUS_OPTIONS = [
   { value: 'responded', label: 'Responded' },
 ]
 
-/** Color-coded pill for offer / showing / inquiry statuses. */
-const PILL_STYLES: Record<string, string> = {
-  new: 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400',
-  reviewed: 'bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-400',
-  scheduled: 'bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-400',
-  responded: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400',
-  accepted: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400',
-  completed: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400',
-  declined: 'bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-400',
-}
 
 /** Percent change of items created in the last 7 days vs the prior 7 days. */
 function trendPct(items: { createdAt: string }[]): number {
@@ -341,6 +337,12 @@ function AdminDashboard() {
   const [inquiryTab, setInquiryTab] = useState('all')
   const [focusInquiryId, setFocusInquiryId] = useState<string | null>(null)
 
+  // Detail dialogs track ids (not snapshots) so status changes and deletes made
+  // elsewhere are reflected immediately from the live store data.
+  const [viewOfferId, setViewOfferId] = useState<string | null>(null)
+  const [viewShowingId, setViewShowingId] = useState<string | null>(null)
+  const [viewInvestorId, setViewInvestorId] = useState<string | null>(null)
+
   useEffect(() => {
     if (ready && (!currentUser || currentUser.role !== 'admin')) {
       router.replace('/login?redirect=/admin')
@@ -434,6 +436,43 @@ function AdminDashboard() {
 
     if (id) setFocusInquiryId(id)
   }
+const messageOffer = (o: Offer) =>
+    void messageLead({
+      name: o.name,
+      company: o.company,
+      email: o.email,
+      phone: o.phone,
+      propertyId: o.propertyId,
+      message: `Offer of ${formatCurrency(o.amount)} on ${
+        propertyMap[o.propertyId]?.address ?? 'a property'
+      }.${
+        purchaseMethodLabel(o.purchaseMethod, o.purchaseMethodOther)
+          ? ` Method of purchase: ${purchaseMethodLabel(o.purchaseMethod, o.purchaseMethodOther)}.`
+          : ''
+      }${o.specialTerms ? ` Special stipulations / terms: ${o.specialTerms}` : ''}${
+        o.notes ? ` Notes: ${o.notes}` : ''
+      }`,
+    })
+
+  const messageShowing = (s: ShowingRequest) =>
+    void messageLead({
+      name: s.name,
+      company: s.company,
+      email: s.email,
+      phone: s.phone,
+      propertyId: s.propertyId,
+      message: `Showing request for ${
+        propertyMap[s.propertyId]?.address ?? 'a property'
+      }. Preferred showing: ${showingPreferenceText(s, 'long')}.${
+        s.message ? ` Message: ${s.message}` : ''
+      }`,
+    })
+
+  const viewedOffer = viewOfferId ? offers.find((o) => o.id === viewOfferId) ?? null : null
+  const viewedShowing = viewShowingId ? showings.find((s) => s.id === viewShowingId) ?? null : null
+  const viewedInvestor = viewInvestorId
+    ? investors.find((u) => u.id === viewInvestorId) ?? null
+    : null
 
   const openFromNotification = (
     kind: Notification['kind'],
@@ -680,6 +719,7 @@ function AdminDashboard() {
                     cell: (o) => formatDate(o.createdAt),
                   },
                 ]}
+                onRowClick={(o) => setViewOfferId(o.id)}
                 action={(o) => (
                   <StatusMenu
                     label={`Update offer from ${o.name}`}
@@ -691,27 +731,8 @@ function AdminDashboard() {
                         v as Offer['status'],
                       )
                     }
-                    onMessage={() =>
-                      void messageLead({
-                        name: o.name,
-                        company: o.company,
-                        email: o.email,
-                        phone: o.phone,
-                        propertyId: o.propertyId,
-                        message: `Offer of ${formatCurrency(
-                          o.amount,
-                        )} on ${
-                          propertyMap[o.propertyId]?.address ??
-                          'a property'
-                        }.${
-                          purchaseMethodLabel(o.purchaseMethod, o.purchaseMethodOther)
-                            ? ` Method of purchase: ${purchaseMethodLabel(o.purchaseMethod, o.purchaseMethodOther)}.`
-                            : ''
-                        }${o.specialTerms ? ` Special stipulations / terms: ${o.specialTerms}` : ''}${
-                          o.notes ? ` Notes: ${o.notes}` : ''
-                        }`,
-                      })
-                    }
+                    onView={() => setViewOfferId(o.id)}
+                    onMessage={() => messageOffer(o)}
                     onDelete={() => confirmDeleteOffer(o)}
                     deleteLabel="Delete offer"
                   />
@@ -809,6 +830,7 @@ function AdminDashboard() {
                     cell: (s) => formatDate(s.createdAt),
                   },
                 ]}
+                onRowClick={(s) => setViewShowingId(s.id)}
                 action={(s) => (
                   <StatusMenu
                     label={`Update showing from ${s.name}`}
@@ -820,19 +842,8 @@ function AdminDashboard() {
                         v as ShowingRequest['status'],
                       )
                     }
-                    onMessage={() =>
-                      void messageLead({
-                        name: s.name,
-                        company: s.company,
-                        email: s.email,
-                        phone: s.phone,
-                        propertyId: s.propertyId,
-                        message: `Showing request for ${
-                          propertyMap[s.propertyId]?.address ??
-                          'a property'
-                       }. Preferred showing: ${showingPreferenceText(s, 'long')}.${s.message ? ` Message: ${s.message}` : ''}`,
-                      })
-                    }
+                    onView={() => setViewShowingId(s.id)}
+                    onMessage={() => messageShowing(s)}
                     onDelete={() => confirmDeleteShowing(s)}
                     deleteLabel="Delete showing"
                   />
@@ -866,6 +877,29 @@ function AdminDashboard() {
                 rows={investors}
                 rowLabel={(u) => `Select ${u.name}`}
                 emptyLabel="No investors registered yet."
+                 noResultsLabel="No investors found."
+                searchable={(u) =>
+                  [u.name, u.company, u.email, u.phone]
+                    .filter((v) => v !== null && v !== undefined && v !== '')
+                    .join(' ')
+                }
+                searchPlaceholder="Search investors…"
+                onRowClick={(u) => setViewInvestorId(u.id)}
+                action={(u) => (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="size-8">
+                        <MoreHorizontal className="size-4" />
+                        <span className="sr-only">Actions for {u.name}</span>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => setViewInvestorId(u.id)}>
+                        <Eye className="size-4" /> View details
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
                 columns={[
                   {
                     key: 'investor',
@@ -1053,6 +1087,47 @@ function AdminDashboard() {
           )}
         </main>
       </div>
+       <OfferDetailsDialog
+        offer={viewedOffer}
+        property={viewedOffer ? propertyMap[viewedOffer.propertyId] : undefined}
+        statusOptions={OFFER_STATUS_OPTIONS}
+        onOpenChange={(open) => !open && setViewOfferId(null)}
+        onStatusChange={(status) => viewedOffer && updateOfferStatus(viewedOffer.id, status)}
+        onMessage={() => viewedOffer && messageOffer(viewedOffer)}
+        onDelete={() => {
+          if (!viewedOffer) return
+          setViewOfferId(null)
+          confirmDeleteOffer(viewedOffer)
+        }}
+      />
+      <ShowingDetailsDialog
+        showing={viewedShowing}
+        property={viewedShowing ? propertyMap[viewedShowing.propertyId] : undefined}
+        statusOptions={SHOWING_STATUS_OPTIONS}
+        onOpenChange={(open) => !open && setViewShowingId(null)}
+        onStatusChange={(status) => viewedShowing && updateShowingStatus(viewedShowing.id, status)}
+        onMessage={() => viewedShowing && messageShowing(viewedShowing)}
+        onDelete={() => {
+          if (!viewedShowing) return
+          setViewShowingId(null)
+          confirmDeleteShowing(viewedShowing)
+        }}
+      />
+      <InvestorDetailsDialog
+        investor={viewedInvestor}
+        offers={viewedInvestor ? offers.filter((o) => o.userId === viewedInvestor.id) : []}
+        showings={viewedInvestor ? showings.filter((s) => s.userId === viewedInvestor.id) : []}
+        propertyMap={propertyMap}
+        onOpenChange={(open) => !open && setViewInvestorId(null)}
+        onViewOffer={(o) => {
+          setViewInvestorId(null)
+          setViewOfferId(o.id)
+        }}
+        onViewShowing={(s) => {
+          setViewInvestorId(null)
+          setViewShowingId(s.id)
+        }}
+      />
 
       {(editing || creating) && (
         <PropertyEditor
@@ -1345,34 +1420,12 @@ function OfferTermsCell({ offer }: { offer: Offer }) {
   )
 }
 
-function StatusPill({
-  status,
-}: {
-  status: string
-}) {
-  const style =
-    PILL_STYLES[status] ??
-    'bg-muted text-muted-foreground'
-
-  return (
-    <span
-      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize ${style}`}
-    >
-      <span
-        className="size-1.5 rounded-full bg-current opacity-70"
-        aria-hidden
-      />
-
-      {status}
-    </span>
-  )
-}
-
 function StatusMenu({
   label,
   value,
   options,
   onChange,
+  onView,
   onMessage,
   onDelete,
   deleteLabel = 'Delete',
@@ -1385,6 +1438,8 @@ function StatusMenu({
   }[]
   onChange: (value: string) => void
   /** When provided, renders a "Message" action at the top of the menu. */
+  /** When provided, renders a "View details" action at the top of the menu. */
+  onView?: () => void
   onMessage?: () => void
   onDelete?: () => void
   deleteLabel?: string
@@ -1405,6 +1460,11 @@ function StatusMenu({
       </DropdownMenuTrigger>
 
       <DropdownMenuContent align="end">
+        {onView && (
+          <DropdownMenuItem onClick={onView}>
+            <Eye className="size-4" /> View details
+          </DropdownMenuItem>
+        )}
         {onMessage && (
           <>
             <DropdownMenuItem onClick={onMessage}>

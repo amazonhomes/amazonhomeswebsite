@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { ChevronLeft, ChevronRight, Search } from 'lucide-react'
-
 import { Button } from '@/components/ui/button'
 import {
   Table,
@@ -23,52 +22,86 @@ export type Column<T> = {
   cellClassName?: string
 }
 
-export type TabDef = {
-  id: string
-  label: string
-}
+export type TabDef = { id: string; label: string }
 
-const ROWS_PER_PAGE = 8
+export const ROWS_PER_PAGE = 8
 
 /**
- * Build a page-number list with ellipsis gaps.
- * Example: [1, '…', 4, 5, 6, '…', 9]
+ * Case-insensitive substring match. When the query looks like a phone number
+ * (digits plus spaces, dashes, dots, parentheses or +), the digits alone are
+ * also compared against the haystack's digits so "(313) 555-0100", "313-555"
+ * and "3135550100" all match the same record.
  */
-export function pageList(
-  current: number,
-  total: number,
-): (number | '…')[] {
+export function matchesSearch(haystack: string, query: string): boolean {
+  const q = query.trim().toLowerCase()
+  if (!q) return true
+  const text = haystack.toLowerCase()
+  if (text.includes(q)) return true
+  if (/^[\d\s().+-]+$/.test(q)) {
+    const digits = q.replace(/\D/g, '')
+    if (digits.length >= 3 && text.replace(/\D/g, '').includes(digits)) return true
+  }
+  return false
+}
+
+/** "Showing 1–8 of 27" (or "Showing 0 of 0" when empty). */
+export function rangeLabel(page: number, pageSize: number, pageRowCount: number, total: number): string {
+  if (total === 0 || pageRowCount === 0) return `Showing 0 of ${total}`
+  const start = page * pageSize + 1
+  return `Showing ${start}–${start + pageRowCount - 1} of ${total}`
+}
+
+/** Toolbar search box shared by every admin table. */
+export function TableSearchInput({
+  value,
+  onChange,
+  placeholder,
+}: {
+  value: string
+  onChange: (value: string) => void
+  placeholder: string
+}) {
+  return (
+    <div className="relative w-full sm:w-[300px]">
+      <Search
+        className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+        aria-hidden
+      />
+      <input
+        type="search"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        aria-label={placeholder}
+        className="h-9 w-full rounded-md border border-border bg-background pl-9 pr-3 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/30"
+      />
+    </div>
+  )
+}
+
+/** True when a row click originated on an interactive control or inside a
+ *  portal (e.g. a dropdown menu item), which should not open row details. */
+function isInteractiveClick(e: React.MouseEvent<HTMLElement>): boolean {
+  const target = e.target as HTMLElement
+  if (!e.currentTarget.contains(target)) return true
+  return Boolean(target.closest('button, a, input, label, select, textarea, [role^="menuitem"]'))
+}
+
+/** Build a page-number list with ellipsis gaps, e.g. [1, '…', 4, 5, 6, '…', 9]. */
+export function pageList(current: number, total: number): (number | '…')[] {
   const c = current + 1
-
-  if (total <= 7) {
-    return Array.from({ length: total }, (_, i) => i + 1)
-  }
-
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1)
   const pages: (number | '…')[] = [1]
-
-  if (c > 3) {
-    pages.push('…')
-  }
-
+  if (c > 3) pages.push('…')
   const start = Math.max(2, c - 1)
   const end = Math.min(total - 1, c + 1)
-
-  for (let i = start; i <= end; i++) {
-    pages.push(i)
-  }
-
-  if (c < total - 2) {
-    pages.push('…')
-  }
-
+  for (let i = start; i <= end; i++) pages.push(i)
+  if (c < total - 2) pages.push('…')
   pages.push(total)
-
   return pages
 }
 
-/**
- * Responsive numbered pagination.
- */
+/** Numbered pagination with prev/next controls, styled to match the dashboard. */
 export function NumberedPagination({
   page,
   pageCount,
@@ -79,25 +112,23 @@ export function NumberedPagination({
   onPage: (page: number) => void
 }) {
   const current = page + 1
-
   return (
-    <div className="flex max-w-full items-center gap-1 overflow-x-auto">
+    <div className="flex items-center gap-1">
       <Button
         variant="outline"
         size="icon"
-        className="size-8 shrink-0"
+        className="size-8"
         onClick={() => onPage(Math.max(0, page - 1))}
         disabled={page === 0}
         aria-label="Previous page"
       >
         <ChevronLeft className="size-4" />
       </Button>
-
       {pageList(page, pageCount).map((item, idx) =>
         item === '…' ? (
           <span
             key={`ellipsis-${idx}`}
-            className="flex size-8 shrink-0 items-center justify-center text-sm text-muted-foreground"
+            className="flex size-8 items-center justify-center text-sm text-muted-foreground"
             aria-hidden
           >
             …
@@ -108,7 +139,7 @@ export function NumberedPagination({
             type="button"
             onClick={() => onPage(item - 1)}
             aria-current={current === item ? 'page' : undefined}
-            className={`flex size-8 shrink-0 items-center justify-center rounded-md text-sm font-medium transition-colors ${
+            className={`flex size-8 items-center justify-center rounded-md text-sm font-medium transition-colors ${
               current === item
                 ? 'bg-foreground text-background'
                 : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
@@ -118,11 +149,10 @@ export function NumberedPagination({
           </button>
         ),
       )}
-
       <Button
         variant="outline"
         size="icon"
-        className="size-8 shrink-0"
+        className="size-8"
         onClick={() => onPage(Math.min(pageCount - 1, page + 1))}
         disabled={page >= pageCount - 1}
         aria-label="Next page"
@@ -146,43 +176,30 @@ export function DataTable<T extends { id: string }>({
   searchable,
   searchPlaceholder = 'Search…',
   emptyLabel = 'Nothing to show here yet.',
+  noResultsLabel = 'No results match your search.',
+  onRowClick,
 }: {
   rows: T[]
   columns: Column<T>[]
-
   /** Optional filter tabs shown above the table. */
   tabs?: TabDef[]
-
   activeTab?: string
-
   onTabChange?: (id: string) => void
-
   countFor?: (id: string) => number
-
-  /**
-   * Returns whether a row belongs to the given tab.
-   * Required when tabs are set.
-   */
+  /** Returns whether a row belongs to the given tab. Required when tabs are set. */
   filterFor?: (row: T, tabId: string) => boolean
-
   /** Accessible label for a row's select checkbox. */
   rowLabel: (row: T) => string
-
-  /**
-   * Optional trailing actions cell.
-   * Example: dropdown menu.
-   */
+  /** Optional trailing actions cell (e.g. a dropdown menu) rendered per row. */
   action?: (row: T) => ReactNode
-
-  /**
-   * Provide searchable text accessor
-   * to render a search box.
-   */
+  /** Provide a searchable text accessor to render a search box in the toolbar. */
   searchable?: (row: T) => string
-
   searchPlaceholder?: string
-
   emptyLabel?: string
+  /** Shown when a search query yields no rows. */
+  noResultsLabel?: string
+  /** Makes rows clickable (and keyboard-activatable), e.g. to open a details dialog. */
+  onRowClick?: (row: T) => void
 }) {
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [page, setPage] = useState(0)
@@ -190,321 +207,158 @@ export function DataTable<T extends { id: string }>({
 
   const filtered = useMemo(() => {
     let base =
-      !tabs ||
-      !activeTab ||
-      activeTab === 'all' ||
-      !filterFor
+      !tabs || !activeTab || activeTab === 'all' || !filterFor
         ? rows
-        : rows.filter((row) => filterFor(row, activeTab))
-
+        : rows.filter((r) => filterFor(r, activeTab))
     if (searchable && query.trim()) {
-      const q = query.trim().toLowerCase()
-
-      base = base.filter((row) =>
-        searchable(row).toLowerCase().includes(q),
-      )
+      base = base.filter((r) => matchesSearch(searchable(r), query))
     }
-
     return base
   }, [rows, tabs, activeTab, filterFor, searchable, query])
 
-  const pageCount = Math.max(
-    1,
-    Math.ceil(filtered.length / ROWS_PER_PAGE),
-  )
-
+  const pageCount = Math.max(1, Math.ceil(filtered.length / ROWS_PER_PAGE))
   const safePage = Math.min(page, pageCount - 1)
+  const pageRows = filtered.slice(safePage * ROWS_PER_PAGE, safePage * ROWS_PER_PAGE + ROWS_PER_PAGE)
 
-  const pageRows = filtered.slice(
-    safePage * ROWS_PER_PAGE,
-    safePage * ROWS_PER_PAGE + ROWS_PER_PAGE,
-  )
-
-  /**
-   * Reset pagination whenever filter/search changes.
-   */
+  // Reset to the first page whenever the active filter or search changes.
   useEffect(() => {
     setPage(0)
   }, [activeTab, query])
 
-  const toggle = (id: string) => {
+  const toggle = (id: string) =>
     setSelected((prev) => {
       const next = new Set(prev)
-
-      if (next.has(id)) {
-        next.delete(id)
-      } else {
-        next.add(id)
-      }
-
+      next.has(id) ? next.delete(id) : next.add(id)
       return next
     })
-  }
 
-  const allOnPageSelected =
-    pageRows.length > 0 &&
-    pageRows.every((row) => selected.has(row.id))
-
-  const toggleAllOnPage = () => {
+  const allOnPageSelected = pageRows.length > 0 && pageRows.every((r) => selected.has(r.id))
+  const toggleAllOnPage = () =>
     setSelected((prev) => {
       const next = new Set(prev)
-
-      if (allOnPageSelected) {
-        pageRows.forEach((row) => next.delete(row.id))
-      } else {
-        pageRows.forEach((row) => next.add(row.id))
-      }
-
+      if (allOnPageSelected) pageRows.forEach((r) => next.delete(r.id))
+      else pageRows.forEach((r) => next.add(r.id))
       return next
     })
-  }
 
   const colSpan = columns.length + (action ? 2 : 1)
 
   return (
-    <section className="flex min-w-0 flex-col gap-4">
-      {/* =====================================================
-          FILTER TABS + SEARCH
-      ===================================================== */}
-
+    <section className="flex flex-col gap-4">
       {(tabs || searchable) && (
-        <div className="flex min-w-0 flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-          {/* FILTER TABS */}
+        <div className="flex flex-wrap items-center justify-between gap-3">
           {tabs && activeTab && onTabChange ? (
-            <div className="-mx-1 min-w-0 overflow-x-auto px-1 pb-1">
-              <Tabs
-                value={activeTab}
-                onValueChange={onTabChange}
-                className="min-w-0"
-              >
-                <TabsList className="inline-flex h-9 w-max min-w-max flex-nowrap">
-                  {tabs.map((tab) => (
-                    <TabsTrigger
-                      key={tab.id}
-                      value={tab.id}
-                      className="shrink-0 gap-1.5 whitespace-nowrap px-3"
-                    >
-                      {tab.label}
-
-                      {countFor && (
-                        <span className="rounded-full bg-muted px-1.5 text-xs font-semibold text-muted-foreground">
-                          {countFor(tab.id)}
-                        </span>
-                      )}
-                    </TabsTrigger>
-                  ))}
-                </TabsList>
-              </Tabs>
-            </div>
+            <Tabs value={activeTab} onValueChange={onTabChange}>
+              <TabsList className="flex-wrap">
+                {tabs.map((t) => (
+                  <TabsTrigger key={t.id} value={t.id} className="gap-1.5">
+                    {t.label}
+                    {countFor && (
+                      <span className="rounded-full bg-muted px-1.5 text-xs font-semibold text-muted-foreground">
+                        {countFor(t.id)}
+                      </span>
+                    )}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </Tabs>
           ) : (
             <span />
           )}
-
-          {/* SEARCH */}
           {searchable && (
-         
-            <div className="flex w-full flex-col gap-2 sm:flex-row xl:w-auto xl:justify-end">
-              <div className="relative min-w-0 flex-1 sm:min-w-[220px] xl:w-56 xl:flex-none">
-                <Search
-                  className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-                  aria-hidden
-                />
-
-                <input
-                  type="search"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder={searchPlaceholder}
-                  aria-label={searchPlaceholder}
-                  className="
-                    h-9
-                    w-full
-                    rounded-md
-                    border
-                    border-border
-                    bg-background
-                    pl-9
-                    pr-3
-                    text-sm
-                    text-foreground
-                    outline-none
-                    transition-colors
-                    placeholder:text-muted-foreground
-                    focus-visible:border-primary
-                    focus-visible:ring-2
-                    focus-visible:ring-primary/30
-                  "
-                />
-              </div>
-            </div>
+            <TableSearchInput value={query} onChange={setQuery} placeholder={searchPlaceholder} />
           )}
         </div>
       )}
 
-      {/* =====================================================
-          GLASS TABLE
-      ===================================================== */}
-
-      <div
-        className="
-          min-w-0
-          overflow-hidden
-          rounded-xl
-          border
-          border-black/[0.06]
-          bg-white/55
-          shadow-[0_8px_30px_rgba(0,0,0,0.04)]
-          backdrop-blur-xl
-          backdrop-saturate-150
-          dark:border-white/10
-          dark:bg-white/[0.035]
-          dark:shadow-[0_8px_30px_rgba(0,0,0,0.18)]
-        "
-      >
-        {/* Horizontal scroll fallback for smaller screens */}
-        <div className="w-full overflow-x-auto">
-          <Table className="w-full min-w-[520px] md:min-w-[760px] lg:min-w-[1000px]">
-            <TableHeader>
-              <TableRow
-                className="
-                  border-b
-                  border-black/[0.06]
-                  bg-white/35
-                  backdrop-blur-2xl
-                  backdrop-saturate-150
-                  hover:bg-white/35
-                  dark:border-white/10
-                  dark:bg-white/[0.06]
-                  dark:hover:bg-white/[0.06]
-                "
-              >
-                {/* Hide checkbox on very small screens */}
-                <TableHead className="hidden w-10 sm:table-cell">
-                  <input
-                    type="checkbox"
-                    aria-label="Select all on page"
-                    checked={allOnPageSelected}
-                    onChange={toggleAllOnPage}
-                    className="size-4 cursor-pointer accent-primary"
-                  />
+      <div className="overflow-hidden rounded-xl border border-border bg-card">
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-muted/50 hover:bg-muted/50">
+              <TableHead className="w-10">
+                <input
+                  type="checkbox"
+                  aria-label="Select all on page"
+                  checked={allOnPageSelected}
+                  onChange={toggleAllOnPage}
+                  className="size-4 cursor-pointer accent-primary"
+                />
+              </TableHead>
+              {columns.map((c) => (
+                <TableHead
+                  key={c.key}
+                  className={`${c.align === 'right' ? 'text-right' : ''} ${c.headClassName ?? ''}`}
+                >
+                  {c.header}
                 </TableHead>
-
-                {columns.map((column) => (
-                  <TableHead
-                    key={column.key}
-                    className={`
-                      whitespace-nowrap
-                      ${
-                        column.align === 'right'
-                          ? 'text-right'
-                          : ''
-                      }
-                      ${column.headClassName ?? ''}
-                    `}
-                  >
-                    {column.header}
-                  </TableHead>
-                ))}
-
-                {action && <TableHead className="w-10" />}
+              ))}
+              {action && <TableHead className="w-10" />}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {pageRows.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={colSpan} className="h-24 text-center text-muted-foreground">
+                  {query.trim() ? noResultsLabel : emptyLabel}
+                </TableCell>
               </TableRow>
-            </TableHeader>
-
-            <TableBody>
-              {pageRows.length === 0 ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={colSpan}
-                    className="h-24 text-center text-muted-foreground"
-                  >
-                    {query.trim()
-                      ? 'No results match your search.'
-                      : emptyLabel}
-                  </TableCell>
-                </TableRow>
-              ) : (
-                pageRows.map((row) => (
-                  <TableRow
-                    key={row.id}
-                    data-state={
-                      selected.has(row.id)
-                        ? 'selected'
-                        : undefined
-                    }
-                    className="
-                      border-black/[0.05]
-                      bg-transparent
-                      transition-colors
-                      hover:bg-black/[0.025]
-                      data-[state=selected]:bg-primary/[0.06]
-                      dark:border-white/[0.07]
-                      dark:hover:bg-white/[0.04]
-                      dark:data-[state=selected]:bg-primary/10
-                    "
-                  >
-                    {/* Hide checkbox on very small screens */}
-                    <TableCell className="hidden sm:table-cell">
-                      <input
-                        type="checkbox"
-                        aria-label={rowLabel(row)}
-                        checked={selected.has(row.id)}
-                        onChange={() => toggle(row.id)}
-                        className="size-4 cursor-pointer accent-primary"
-                      />
-                    </TableCell>
-
-                    {/* DATA */}
-                    {columns.map((column) => (
-                      <TableCell
-                        key={column.key}
-                        className={`
-                          whitespace-nowrap
-                          ${
-                            column.align === 'right'
-                              ? 'text-right'
-                              : ''
+            ) : (
+              pageRows.map((row) => (
+                <TableRow
+                  key={row.id}
+                  data-state={selected.has(row.id) ? 'selected' : undefined}
+                  className={onRowClick ? 'cursor-pointer' : undefined}
+                  tabIndex={onRowClick ? 0 : undefined}
+                  aria-label={onRowClick ? `${rowLabel(row).replace(/^Select /, 'View ')} details` : undefined}
+                  onClick={
+                    onRowClick
+                      ? (e) => {
+                          if (!isInteractiveClick(e)) onRowClick(row)
+                        }
+                      : undefined
+                  }
+                  onKeyDown={
+                    onRowClick
+                      ? (e) => {
+                          if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
+                            e.preventDefault()
+                            onRowClick(row)
                           }
-                          ${column.cellClassName ?? ''}
-                        `}
-                      >
-                        {column.cell(row)}
-                      </TableCell>
-                    ))}
-
-                    {/* ACTIONS */}
-                    {action && (
-                      <TableCell className="sticky right-0 bg-inherit">
-                        {action(row)}
-                      </TableCell>
-                    )}
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
+                        }
+                      : undefined
+                  }
+                >
+                  <TableCell>
+                    <input
+                      type="checkbox"
+                      aria-label={rowLabel(row)}
+                      checked={selected.has(row.id)}
+                      onChange={() => toggle(row.id)}
+                      className="size-4 cursor-pointer accent-primary"
+                    />
+                  </TableCell>
+                  {columns.map((c) => (
+                    <TableCell
+                      key={c.key}
+                      className={`${c.align === 'right' ? 'text-right' : ''} ${c.cellClassName ?? ''}`}
+                    >
+                      {c.cell(row)}
+                    </TableCell>
+                  ))}
+                  {action && <TableCell>{action(row)}</TableCell>}
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
       </div>
 
-      {/* =====================================================
-          RESPONSIVE PAGINATION
-      ===================================================== */}
-
-      <div className="flex flex-col gap-3 px-1 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-center text-xs text-muted-foreground sm:text-left sm:text-sm">
-          Showing {pageRows.length} of {filtered.length}
-
-          {selected.size > 0 && (
-            <span> · {selected.size} selected</span>
-          )}
+      <div className="flex flex-wrap items-center justify-between gap-4 px-1">
+        <p className="text-sm text-muted-foreground">
+          {rangeLabel(safePage, ROWS_PER_PAGE, pageRows.length, filtered.length)}
+          {selected.size > 0 && <span> · {selected.size} selected</span>}
         </p>
-
-        <div className="flex max-w-full justify-center overflow-x-auto sm:justify-end">
-          <NumberedPagination
-            page={safePage}
-            pageCount={pageCount}
-            onPage={setPage}
-          />
-        </div>
+        <NumberedPagination page={safePage} pageCount={pageCount} onPage={setPage} />
       </div>
     </section>
   )

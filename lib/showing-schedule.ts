@@ -126,6 +126,21 @@ export function formatShowingLong(iso: string | null | undefined): string {
   return day && time ? `${day} at ${time} ${BUSINESS_TZ_LABEL}` : ''
 }
 
+/** "Monday, October 5, 2026" in Detroit time. */
+export function formatShowingDate(iso: string | null | undefined): string {
+  if (!iso) return ''
+  return (
+    detroitParts(iso, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }) ?? ''
+  )
+}
+
+/** "2:30 PM ET" in Detroit time. */
+export function formatShowingTime(iso: string | null | undefined): string {
+  if (!iso) return ''
+  const time = detroitParts(iso, { hour: 'numeric', minute: '2-digit' })
+  return time ? `${time} ${BUSINESS_TZ_LABEL}` : ''
+}
+
 /**
  * Display text for any showing record: the exact appointment when one was
  * picked, otherwise the legacy free-text preference (or a neutral fallback).
