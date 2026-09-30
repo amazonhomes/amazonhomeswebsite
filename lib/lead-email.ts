@@ -16,15 +16,25 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 
 export type EmailResult = { ok: boolean; delivered: boolean; status?: number }
 
+/** Team inboxes from LEAD_NOTIFICATION_EMAIL (single address or comma-separated list). */
+export function getLeadNotificationEmails(): string[] {
+  return (
+    process.env.LEAD_NOTIFICATION_EMAIL?.split(',')
+      .map((email) => email.trim())
+      .filter(Boolean) ?? []
+  )
+}
+
 export async function sendEmail(opts: {
-  to: string
+  to: string | string[]
   subject: string
   text: string
   html?: string
-  replyTo?: string
+  replyTo?: string | string[]
 }): Promise<EmailResult> {
   const apiKey = process.env.RESEND_API_KEY
-  if (!apiKey || !opts.to) {
+  const hasRecipient = Array.isArray(opts.to) ? opts.to.length > 0 : Boolean(opts.to)
+  if (!apiKey || !hasRecipient) {
     console.log(`[email] Delivery disabled (missing RESEND_API_KEY or recipient): ${opts.subject}`)
     return { ok: true, delivered: false }
   }
@@ -344,7 +354,7 @@ export async function notifyTeamOfLead(
     console.log(`[email] Sending ${LABEL[lead.type]} notification for ${lead.name}`)
 
     await sendEmail({
-      to: process.env.LEAD_NOTIFICATION_EMAIL ?? '',
+      to: getLeadNotificationEmails(),
       subject,
       text,
       html,

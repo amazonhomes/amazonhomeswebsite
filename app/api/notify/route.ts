@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { checkRateLimit, clientIp } from '@/lib/rate-limit'
+import { getLeadNotificationEmails } from '@/lib/lead-email'
 
 /**
  * Lead + reply notification endpoint.
@@ -30,15 +31,16 @@ const MAX_SUBJECT = 200
 const MAX_SUMMARY = 5000
 
 async function sendEmail(opts: {
-  to: string
+  to: string | string[]
   subject: string
   text: string
   replyTo?: string
 }): Promise<{ ok: boolean; delivered: boolean; status?: number }> {
   const apiKey = process.env.RESEND_API_KEY
-  if (!apiKey || !opts.to) {
+  const hasRecipient = Array.isArray(opts.to) ? opts.to.length > 0 : Boolean(opts.to)
+  if (!apiKey || !hasRecipient) {
     // Provider not configured yet — wiring is ready, delivery is disabled.
-    console.log(`[v0] Notification (email disabled) → ${opts.to || 'no recipient'}: ${opts.subject}`)
+    console.log(`[v0] Notification (email disabled) → ${hasRecipient ? 'recipient set' : 'no recipient'}: ${opts.subject}`)
     return { ok: true, delivered: false }
   }
   try {
@@ -136,7 +138,7 @@ export async function POST(req: Request) {
     const body = String(last?.body ?? '').slice(0, MAX_SUMMARY)
     const author = String(last?.author ?? 'Amazon Homes team').slice(0, MAX_SUBJECT)
 
-    const teamInbox = process.env.LEAD_NOTIFICATION_EMAIL
+    const teamInbox = getLeadNotificationEmails()
     const result = isAdmin
       ? await sendEmail({
           to: String(inquiry.email ?? ''),
@@ -144,7 +146,7 @@ export async function POST(req: Request) {
           text: `${author} replied to your inquiry:\n\n${body}`,
         })
       : await sendEmail({
-          to: teamInbox ?? '',
+          to: teamInbox,
           subject: `New reply from ${String(inquiry.name ?? 'an investor').slice(0, MAX_SUBJECT)}`,
           text: `${String(inquiry.name ?? '')} (${String(inquiry.email ?? '')}) replied:\n\n${body}`,
           replyTo: String(inquiry.email ?? '') || undefined,

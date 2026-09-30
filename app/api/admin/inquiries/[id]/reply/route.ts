@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { requireAdmin, writeAudit } from '@/lib/admin-guard'
 import { checkRateLimit } from '@/lib/rate-limit'
-import { sendEmail, escapeHtml, escapeHtmlMultiline } from '@/lib/lead-email'
+import { sendEmail, escapeHtml, escapeHtmlMultiline, getLeadNotificationEmails } from '@/lib/lead-email'
 
 const MAX_MESSAGE_LENGTH = 5000
 
@@ -56,12 +56,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   }
 
   const leadName = String(inquiry.name ?? 'there')
+  const teamInboxes = getLeadNotificationEmails()
   const result = await sendEmail({
     to,
     subject: 'A reply from Amazon Homes about your inquiry',
     text: `Hi ${leadName},\n\n${message}\n\n— Amazon Homes team`,
     html: `<p>Hi ${escapeHtml(leadName)},</p><p>${escapeHtmlMultiline(message)}</p><p>— Amazon Homes team</p>`,
-    replyTo: process.env.LEAD_NOTIFICATION_EMAIL || undefined,
+    replyTo: teamInboxes.length > 0 ? teamInboxes : undefined,
   })
   if (!result.ok) {
     return NextResponse.json({ error: 'The reply could not be sent. Please try again.' }, { status: 502 })
