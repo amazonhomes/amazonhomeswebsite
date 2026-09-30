@@ -69,6 +69,9 @@ export const limiters = {
   adminDelete: makeLimiter(10, '10 m', 'rl:admin:delete'),
   // Admin-initiated password-reset emails for a target account.
   adminReset: makeLimiter(5, '15 m', 'rl:admin:reset'),
+  // Notification read receipts. Cheap and idempotent, so generous enough for
+  // an admin clicking through a long backlog.
+  adminNotificationRead: makeLimiter(120, '1 m', 'rl:admin:notif-read'),
 }
 
 export type LimiterName = keyof typeof limiters
