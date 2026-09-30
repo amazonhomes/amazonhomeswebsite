@@ -295,7 +295,7 @@ export default function PropertyDetailPage() {
               {!isAuthed && (
                 <div className="flex items-center justify-between gap-4 rounded-md border border-border bg-secondary px-4 py-3">
                   <p className="flex items-center gap-2 text-sm text-foreground">
-                    <Lock className="size-4 text-accent" />
+                    <Lock className="size-4 text-primary" />
 
                     {
                       property.photos.filter((p) => p.protected)
