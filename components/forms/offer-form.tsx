@@ -193,7 +193,7 @@ export function OfferForm({
           id="offer-special-terms"
           value={specialTerms}
           onChange={(e) => setSpecialTerms(e.target.value)}
-          placeholder="Optional: close timeline, contingencies, earnest money…"
+          placeholder="Agent fees, remarks, conditions…"
           rows={3}
         />
       </div>
