@@ -189,18 +189,6 @@ export default function PropertyDetailPage() {
               Back to properties
             </Link>
           </Button>
-
-          {offerCount > 0 && (
-            <p className="inline-flex w-fit max-w-full items-center gap-1.5 rounded-md border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-semibold text-red-700">
-              <Flame className="size-3.5 shrink-0 fill-red-500 text-orange-500" />
-
-              <span>
-                {offerCount === 1
-                  ? "1 offer submitted on this property"
-                  : `${offerCount} offers submitted on this property`}
-              </span>
-            </p>
-          )}
         </div>
 
         {/*
