@@ -580,7 +580,7 @@ export default function PropertyDetailPage() {
                     rel="noopener noreferrer"
                     className="flex items-center gap-1.5 border-t border-border bg-card px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-secondary"
                   >
-                    <MapPin className="size-4 text-accent" />
+                    <MapPin className="size-4 text-primary" />
 
                     Open in Google Maps
                   </a>
