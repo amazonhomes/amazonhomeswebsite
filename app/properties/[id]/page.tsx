@@ -712,7 +712,7 @@ function PropertyHeading({
       <h1
         className={cn(
           'mt-1 break-words font-display font-bold leading-tight tracking-tight text-foreground',
-          compact ? 'text-[1.75rem] text-balance' : 'text-[2rem]',
+          compact ? 'text-[2rem] text-balance' : 'text-[2.25rem]',
         )}
       >
         {property.address}
