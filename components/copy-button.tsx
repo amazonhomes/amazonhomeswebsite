@@ -16,7 +16,10 @@ export function CopyButton({
   className,
   variant = 'outline',
   size = 'sm',
+  iconOnly = false,
 }: {
+  /** Render a compact square button with the label available to screen readers and as a tooltip. */
+  iconOnly?: boolean
   /** Static value to copy. Ignored when getValue is provided. */
   value?: string
   /** Lazily resolve the value at click time (e.g. current URL). */
@@ -49,15 +52,22 @@ export function CopyButton({
       variant={variant}
       size={size}
       onClick={handleCopy}
-      className={cn('gap-2', className)}
-      aria-label={label}
+      className={cn('gap-2', iconOnly && 'size-8 p-0', className)}
+      aria-label={copied ? copiedLabel : label}
+      title={iconOnly ? (copied ? copiedLabel : label) : undefined}
     >
       {copied ? (
         <Check className="size-4 text-primary" />
       ) : (
         (icon ?? <Copy className="size-4" />)
       )}
-      {copied ? copiedLabel : label}
+      {iconOnly ? (
+        <span className="sr-only">{copied ? copiedLabel : label}</span>
+      ) : copied ? (
+        copiedLabel
+      ) : (
+        label
+      )}
     </Button>
   )
 }
