@@ -13,7 +13,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Eye,
-  Flame,
   Link2,
   Lock,
   MapPin,
@@ -193,7 +192,7 @@ export default function PropertyDetailPage() {
 
         {/*
           Mobile:
-          gallery + heading → deal panel → details
+          gallery → deal panel → details
 
           Desktop:
           gallery + details on the left
@@ -302,40 +301,46 @@ export default function PropertyDetailPage() {
                 </div>
               )}
             </div>
-
-            {/* MOBILE PROPERTY HEADING */}
-            <div className="lg:hidden">
-              <PropertyHeading property={property} />
-            </div>
           </div>
-          
 
           {/* RIGHT / DEAL PANEL */}
           <aside className="lg:sticky lg:top-20 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:h-fit lg:self-start">
             <div className="flex flex-col gap-5 rounded-lg border border-border bg-card p-6">
-              {/* DESKTOP PROPERTY HEADING */}
-              <div className="hidden lg:block">
+              {/* MOBILE PROPERTY HEADING */}
+              <div className="lg:hidden">
+                <div className="mb-4">
+                  <p className="text-sm text-muted-foreground">
+                    Asking price
+                  </p>
 
-                <div className="lg:-mt-1 mb-2">
-               {/* ASKING PRICE */}
-                <p className="text-sm text-muted-foreground">
-                  Asking price
-                </p>
+                  <p className="font-display text-4xl font-bold tracking-tight text-foreground">
+                    {formatCurrency(property.price)}
+                  </p>
+                </div>
 
-                <p className="font-display text-4xl font-bold tracking-tight text-foreground">
-                  {formatCurrency(property.price)}
-                </p>
-                
-              </div>
-              
-                
                 <PropertyHeading
                   property={property}
                   compact
                 />
-              
               </div>
-              
+
+              {/* DESKTOP PROPERTY HEADING */}
+              <div className="hidden lg:block">
+                <div className="mb-2 lg:-mt-1">
+                  <p className="text-sm text-muted-foreground">
+                    Asking price
+                  </p>
+
+                  <p className="font-display text-4xl font-bold tracking-tight text-foreground">
+                    {formatCurrency(property.price)}
+                  </p>
+                </div>
+
+                <PropertyHeading
+                  property={property}
+                  compact
+                />
+              </div>
 
               {/* FINANCIALS */}
               {isAuthed ? (
@@ -659,9 +664,7 @@ export default function PropertyDetailPage() {
 /**
  * Address, location, type and key facts.
  *
- * Rendered under the gallery on mobile and
- * at the top of the deal panel on desktop.
- * Only one is ever visible.
+ * Used inside the deal panel for mobile and desktop.
  */
 function PropertyHeading({
   property,
@@ -685,24 +688,34 @@ function PropertyHeading({
           <Eye className="size-3.5" />
           {property.views} views
         </span>
-         <div className="ml-auto flex items-center gap-1">
+
+        <div className="ml-auto flex items-center gap-1">
           <CopyButton
             iconOnly
             variant="ghost"
             value={fullAddress}
             label="Copy address"
             copiedLabel="Address copied"
-            icon={<MapPinnedIcon className="size-4" />}
+            icon={
+              <MapPinnedIcon className="size-4" />
+            }
             toastMessage="Address copied to clipboard"
             className="text-muted-foreground hover:text-foreground"
           />
+
           <CopyButton
             iconOnly
             variant="ghost"
-            getValue={() => (typeof window !== 'undefined' ? window.location.href : '')}
+            getValue={() =>
+              typeof window !== 'undefined'
+                ? window.location.href
+                : ''
+            }
             label="Copy link"
             copiedLabel="Link copied"
-            icon={<Link2 className="size-4" />}
+            icon={
+              <Link2 className="size-4" />
+            }
             toastMessage="Share link copied to clipboard"
             className="text-muted-foreground hover:text-foreground"
           />
@@ -712,7 +725,9 @@ function PropertyHeading({
       <h1
         className={cn(
           'mt-1 break-words font-display font-bold leading-tight tracking-tight text-foreground',
-          compact ? 'text-[2rem] text-balance' : 'text-[2.25rem]',
+          compact
+            ? 'text-[2rem] text-balance'
+            : 'text-[2.25rem]',
         )}
       >
         {property.address}
@@ -731,7 +746,7 @@ function PropertyHeading({
         Listed {formatDate(property.createdAt)}
       </p>
 
-      {/* DESKTOP FACTS WITH ICONS */}
+      {/* PROPERTY FACTS */}
       {compact && (
         <dl className="mt-4 grid grid-cols-4 divide-x divide-border rounded-md border border-border">
           <Fact
@@ -763,7 +778,6 @@ function PropertyHeading({
           />
         </dl>
       )}
-
     </div>
   )
 }
