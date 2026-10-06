@@ -27,7 +27,7 @@ export default function AdminTransactionsPage() {
   }
 
   return (
-    <div className="flex min-h-dvh bg-secondary">
+    <div className="flex min-h-dvh bg-white dark:bg-[#242424]">
       <AdminSidebar
         active="transactions"
         user={currentUser}
