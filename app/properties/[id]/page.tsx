@@ -829,12 +829,12 @@ function PropertyHeading({
       </div>
 
       {/* ADDRESS */}
-      <h1 className="mt-3 break-words text-balance font-display text-[1.625rem] font-bold leading-tight tracking-tight text-foreground sm:text-[2rem] lg:text-[1.75rem]">
-        {property.address}
-      </h1>
+      <h1 className="mt-3 break-words text-balance font-display text-[2rem] font-bold leading-tight tracking-tight text-foreground sm:text-[2.25rem] lg:text-[2rem]">
+  {property.address}
+</h1>
 
       {/* ASKING PRICE */}
-      <div className="mt-5 flex items-end justify-between gap-3">
+      <div className="mt-3 flex items-end justify-between gap-3">
         <div className="min-w-0">
           <p className="text-sm text-muted-foreground">
             Asking price
@@ -846,33 +846,33 @@ function PropertyHeading({
         </div>
 
         {/* MOBILE COPY ICONS */}
-        <div className="flex shrink-0 items-center gap-1 sm:hidden">
-          <CopyButton
-            iconOnly
-            variant="ghost"
-            value={fullAddress}
-            label="Copy address"
-            copiedLabel="Address copied"
-            icon={<MapPinnedIcon className="size-5" />}
-            toastMessage="Address copied to clipboard"
-            className="size-10 text-muted-foreground hover:text-foreground"
-          />
+<div className="flex shrink-0 items-center gap-0.5 sm:hidden">
+  <CopyButton
+    iconOnly
+    variant="ghost"
+    value={fullAddress}
+    label="Copy address"
+    copiedLabel="Address copied"
+    icon={<MapPinnedIcon className="size-3.5" />}
+    toastMessage="Address copied to clipboard"
+    className="size-7 p-0 text-muted-foreground hover:text-foreground"
+  />
 
-          <CopyButton
-            iconOnly
-            variant="ghost"
-            getValue={() =>
-              typeof window !== 'undefined'
-                ? window.location.href
-                : ''
-            }
-            label="Copy link"
-            copiedLabel="Link copied"
-            icon={<Link2 className="size-5" />}
-            toastMessage="Share link copied to clipboard"
-            className="size-10 text-muted-foreground hover:text-foreground"
-          />
-        </div>
+  <CopyButton
+    iconOnly
+    variant="ghost"
+    getValue={() =>
+      typeof window !== 'undefined'
+        ? window.location.href
+        : ''
+    }
+    label="Copy link"
+    copiedLabel="Link copied"
+    icon={<Link2 className="size-3.5" />}
+    toastMessage="Share link copied to clipboard"
+    className="size-7 p-0 text-muted-foreground hover:text-foreground"
+  />
+</div>
       </div>
 
       {/* LOCATION */}
