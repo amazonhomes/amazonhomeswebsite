@@ -785,11 +785,9 @@ function PropertyHeading({
 
   return (
     <div className="flex flex-col">
-      {/* STATUS / TYPE / VIEWS / COPY */}
+      {/* STATUS / TYPE / VIEWS */}
       <div className="flex flex-wrap items-center gap-2">
-        <StatusBadge
-          status={property.status}
-        />
+        <StatusBadge status={property.status} />
 
         <span className="rounded-sm bg-secondary px-2.5 py-1 text-xs font-semibold text-foreground">
           {property.type}
@@ -800,16 +798,15 @@ function PropertyHeading({
           {property.views} views
         </span>
 
-        <div className="ml-auto flex items-center gap-1">
+        {/* DESKTOP COPY ICONS */}
+        <div className="ml-auto hidden items-center gap-1 sm:flex">
           <CopyButton
             iconOnly
             variant="ghost"
             value={fullAddress}
             label="Copy address"
             copiedLabel="Address copied"
-            icon={
-              <MapPinnedIcon className="size-4" />
-            }
+            icon={<MapPinnedIcon className="size-4" />}
             toastMessage="Address copied to clipboard"
             className="text-muted-foreground hover:text-foreground"
           />
@@ -818,16 +815,13 @@ function PropertyHeading({
             iconOnly
             variant="ghost"
             getValue={() =>
-              typeof window !==
-              'undefined'
+              typeof window !== 'undefined'
                 ? window.location.href
                 : ''
             }
             label="Copy link"
             copiedLabel="Link copied"
-            icon={
-              <Link2 className="size-4" />
-            }
+            icon={<Link2 className="size-4" />}
             toastMessage="Share link copied to clipboard"
             className="text-muted-foreground hover:text-foreground"
           />
@@ -840,36 +834,60 @@ function PropertyHeading({
       </h1>
 
       {/* ASKING PRICE */}
-      <div className="mt-3">
-        <p className="text-sm text-muted-foreground">
-          Asking price
-        </p>
+      <div className="mt-5 flex items-end justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-sm text-muted-foreground">
+            Asking price
+          </p>
 
-        <p className="font-display text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-          {formatCurrency(
-            property.price,
-          )}
-        </p>
+          <p className="font-display text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+            {formatCurrency(property.price)}
+          </p>
+        </div>
+
+        {/* MOBILE COPY ICONS */}
+        <div className="flex shrink-0 items-center gap-1 sm:hidden">
+          <CopyButton
+            iconOnly
+            variant="ghost"
+            value={fullAddress}
+            label="Copy address"
+            copiedLabel="Address copied"
+            icon={<MapPinnedIcon className="size-5" />}
+            toastMessage="Address copied to clipboard"
+            className="size-10 text-muted-foreground hover:text-foreground"
+          />
+
+          <CopyButton
+            iconOnly
+            variant="ghost"
+            getValue={() =>
+              typeof window !== 'undefined'
+                ? window.location.href
+                : ''
+            }
+            label="Copy link"
+            copiedLabel="Link copied"
+            icon={<Link2 className="size-5" />}
+            toastMessage="Share link copied to clipboard"
+            className="size-10 text-muted-foreground hover:text-foreground"
+          />
+        </div>
       </div>
 
       {/* LOCATION */}
       <p className="mt-4 flex items-start gap-1.5 text-sm text-muted-foreground">
         <MapPin className="mt-0.5 size-4 shrink-0" />
 
-        {property.neighborhood},{' '}
-        {property.city},{' '}
-        {property.state}{' '}
-        {property.zip}
+        {property.neighborhood}, {property.city},{' '}
+        {property.state} {property.zip}
       </p>
 
-      {/* LISTED */}
+      {/* LISTED DATE */}
       <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
         <CalendarClock className="size-3.5" />
 
-        Listed{' '}
-        {formatDate(
-          property.createdAt,
-        )}
+        Listed {formatDate(property.createdAt)}
       </p>
 
       {/* PROPERTY FACTS */}
@@ -877,17 +895,13 @@ function PropertyHeading({
         <Fact
           icon={BedDouble}
           label="Beds"
-          value={String(
-            property.beds,
-          )}
+          value={String(property.beds)}
         />
 
         <Fact
           icon={Bath}
           label="Baths"
-          value={String(
-            property.baths,
-          )}
+          value={String(property.baths)}
         />
 
         <Fact
@@ -901,9 +915,7 @@ function PropertyHeading({
           label="Built"
           value={
             property.yearBuilt
-              ? String(
-                  property.yearBuilt,
-                )
+              ? String(property.yearBuilt)
               : '—'
           }
         />
