@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
 import { AdminHeader, AdminMobileNav, AdminSidebar } from '@/components/admin/admin-nav'
 import { TransactionsWorkspace } from '@/components/admin/transactions/transactions-workspace'
+import { Loader } from '@/components/loader'
 import { useStore } from '@/lib/store'
 
 export default function AdminTransactionsPage() {
@@ -18,13 +19,9 @@ export default function AdminTransactionsPage() {
     }
   }, [ready, currentUser, router])
 
-  if (!ready || !currentUser || currentUser.role !== 'admin') {
-    return (
-      <div className="flex min-h-dvh items-center justify-center bg-secondary">
-        <p className="text-sm text-muted-foreground">Loading…</p>
-      </div>
-    )
-  }
+ if (!ready || !currentUser || currentUser.role !== 'admin') {
+     return <Loader fullscreen label="Loading" />
+   }
 
   return (
     <div className="flex min-h-dvh bg-white dark:bg-[#242424]">
