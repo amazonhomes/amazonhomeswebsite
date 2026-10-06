@@ -13,10 +13,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Eye,
-  Link2,
+  Flame,
   Lock,
   MapPin,
-  MapPinnedIcon,
   Ruler,
   TrendingUp,
 } from 'lucide-react'
@@ -29,6 +28,7 @@ import { OfferCountdown } from '@/components/offer-countdown'
 import { StatusBadge } from '@/components/status-badge'
 import { CopyButton } from '@/components/copy-button'
 import { Button } from '@/components/ui/button'
+import { Link2, MapPinnedIcon } from 'lucide-react'
 import { withUtm } from '@/lib/utm'
 import { useCountdown } from '@/lib/use-countdown'
 import { cn } from '@/lib/utils'
@@ -66,8 +66,6 @@ export default function PropertyDetailPage() {
 
   const [activePhoto, setActivePhoto] = useState(0)
 
-  // Controls which group of thumbnails is visible.
-  // Exactly 4 thumbnails are shown at a time.
   const [thumbnailStart, setThumbnailStart] = useState(0)
 
   const countdown = useCountdown(property?.offerDeadline ?? null)
@@ -85,9 +83,7 @@ export default function PropertyDetailPage() {
       toast('Log in to save this property', {
         action: {
           label: 'Log in',
-          onClick: () => {
-            window.location.href = '/login'
-          },
+          onClick: () => (window.location.href = '/login'),
         },
       })
 
@@ -128,45 +124,74 @@ export default function PropertyDetailPage() {
     property.status === 'available' ||
     property.status === 'under-contract'
 
-  const cover = property.photos[activePhoto] ?? property.photos[0]
+  /*
+   * Gallery / carousel
+   */
+  const thumbnailCount = 4
 
-  const totalPhotos = property.photos.length
+  const photoCount = property.photos.length
+
+  const maxThumbnailStart = Math.max(
+    0,
+    photoCount - thumbnailCount,
+  )
+
+  const cover =
+    property.photos[activePhoto] ??
+    property.photos[0]
 
   const visiblePhotos = property.photos.slice(
     thumbnailStart,
-    thumbnailStart + 4,
+    thumbnailStart + thumbnailCount,
   )
 
-  const canGoPrevious = thumbnailStart > 0
-
-  const canGoNext = thumbnailStart + 4 < totalPhotos
-
-  function goToPreviousThumbnails() {
-    if (!canGoPrevious) return
-
-    setThumbnailStart((current) => Math.max(0, current - 1))
-  }
-
-  function goToNextThumbnails() {
-    if (!canGoNext) return
-
-    setThumbnailStart((current) =>
-      Math.min(Math.max(0, totalPhotos - 4), current + 1),
-    )
-  }
-
   function selectPhoto(index: number) {
+    if (index < 0 || index >= photoCount) {
+      return
+    }
+
     setActivePhoto(index)
 
-    // Keep the selected image inside the visible
-    // four-thumbnail window.
-    if (index < thumbnailStart) {
-      setThumbnailStart(index)
-    } else if (index >= thumbnailStart + 4) {
-      setThumbnailStart(
+    setThumbnailStart((current) => {
+      if (index < current) {
+        return index
+      }
+
+      if (index >= current + thumbnailCount) {
+        return Math.min(
+          index - thumbnailCount + 1,
+          maxThumbnailStart,
+        )
+      }
+
+      return current
+    })
+  }
+
+  function shiftThumbnailWindow(direction: -1 | 1) {
+    const nextStart = Math.min(
+      maxThumbnailStart,
+      Math.max(
+        0,
+        thumbnailStart + direction,
+      ),
+    )
+
+    setThumbnailStart(nextStart)
+
+    /*
+     * Keep the currently active photo inside
+     * the visible 4-thumbnail window.
+     */
+    if (activePhoto < nextStart) {
+      setActivePhoto(nextStart)
+    } else if (
+      activePhoto >= nextStart + thumbnailCount
+    ) {
+      setActivePhoto(
         Math.min(
-          Math.max(0, totalPhotos - 4),
-          index - 3,
+          photoCount - 1,
+          nextStart + thumbnailCount - 1,
         ),
       )
     }
@@ -175,65 +200,154 @@ export default function PropertyDetailPage() {
   return (
     <PageShell>
       <div className="mx-auto max-w-6xl px-4 py-6">
-        {/* BACK + OFFER COUNT */}
-        <div className="mb-4 flex flex-wrap items-center gap-3">
-          <Button
-            variant="ghost"
-            size="sm"
-            asChild
-            className="-ml-2"
-          >
-            <Link href="/properties">
-              <ArrowLeft className="size-4" />
-              Back to properties
-            </Link>
-          </Button>
-        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          asChild
+          className="mb-4 -ml-2"
+        >
+          <Link href="/properties">
+            <ArrowLeft className="size-4" />
+            Back to properties
+          </Link>
+        </Button>
 
         {/*
-          Mobile:
+          Mobile order:
           gallery → deal panel → details
 
           Desktop:
-          gallery + details on the left
-          sticky deal panel on the right
+          gallery + details on left,
+          sticky deal panel on right.
         */}
+
         <div className="grid gap-x-8 gap-y-6 lg:grid-cols-[1.6fr_1fr]">
-          {/* LEFT / GALLERY */}
           <div className="flex flex-col gap-6 lg:col-start-1 lg:row-start-1">
             <div className="flex flex-col gap-3">
-              {/* MAIN PHOTO */}
-              <LockedImage
-                src={cover.url}
-                alt={cover.alt}
-                locked={cover.protected && !isAuthed}
-                previewUrl={cover.previewUrl}
-                propertyId={property.id}
-                className="aspect-[16/10] w-full rounded-lg"
-              />
+
+              {/* MAIN IMAGE */}
+              <div className="relative overflow-hidden rounded-lg">
+                <LockedImage
+                  src={cover.url}
+                  alt={cover.alt}
+                  locked={
+                    cover.protected &&
+                    !isAuthed
+                  }
+                  previewUrl={cover.previewUrl}
+                  propertyId={property.id}
+                  className="aspect-[16/10] w-full rounded-lg"
+                />
+
+                {/* MAIN IMAGE ARROWS */}
+                {photoCount > 1 && (
+                  <>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="icon"
+                      onClick={() =>
+                        selectPhoto(
+                          activePhoto - 1,
+                        )
+                      }
+                      disabled={
+                        activePhoto === 0
+                      }
+                      aria-label="Previous photo"
+                      className="absolute left-3 top-1/2 z-10 -translate-y-1/2 rounded-full bg-background/85 shadow-md backdrop-blur-sm hover:bg-background disabled:opacity-40"
+                    >
+                      <ChevronLeft className="size-5" />
+                    </Button>
+
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="icon"
+                      onClick={() =>
+                        selectPhoto(
+                          activePhoto + 1,
+                        )
+                      }
+                      disabled={
+                        activePhoto ===
+                        photoCount - 1
+                      }
+                      aria-label="Next photo"
+                      className="absolute right-3 top-1/2 z-10 -translate-y-1/2 rounded-full bg-background/85 shadow-md backdrop-blur-sm hover:bg-background disabled:opacity-40"
+                    >
+                      <ChevronRight className="size-5" />
+                    </Button>
+                  </>
+                )}
+
+                {/* PHOTO COUNTER */}
+                {photoCount > 0 && (
+                  <div className="absolute bottom-3 right-3 rounded-full bg-black/65 px-2.5 py-1 text-xs font-medium text-white backdrop-blur-sm">
+                    {activePhoto + 1} /{' '}
+                    {photoCount}
+                  </div>
+                )}
+              </div>
 
               {/* THUMBNAIL CAROUSEL */}
-              {totalPhotos > 1 && (
-                <div className="relative w-full">
-                  <div className="grid grid-cols-4 gap-3">
-                    {visiblePhotos.map((photo, visibleIndex) => {
-                      const actualIndex =
-                        thumbnailStart + visibleIndex
+              <div className="flex items-center gap-2 sm:gap-3">
+                {/* PREVIOUS THUMBNAILS */}
+                {photoCount >
+                  thumbnailCount && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={() =>
+                      shiftThumbnailWindow(-1)
+                    }
+                    disabled={
+                      thumbnailStart === 0
+                    }
+                    aria-label="Previous thumbnails"
+                    className="size-9 shrink-0 rounded-full sm:size-10"
+                  >
+                    <ChevronLeft className="size-4" />
+                  </Button>
+                )}
+
+                {/* EXACTLY 4 THUMBNAIL COLUMNS */}
+                <div className="grid min-w-0 flex-1 grid-cols-4 gap-2 sm:gap-3">
+                  {visiblePhotos.map(
+                    (
+                      photo,
+                      visibleIndex,
+                    ) => {
+                      const photoIndex =
+                        thumbnailStart +
+                        visibleIndex
 
                       return (
                         <button
-                          key={photo.url + actualIndex}
+                          key={
+                            photo.url +
+                            photoIndex
+                          }
                           type="button"
-                          onClick={() => selectPhoto(actualIndex)}
+                          onClick={() =>
+                            selectPhoto(
+                              photoIndex,
+                            )
+                          }
                           className={cn(
-                            'relative aspect-square min-w-0 overflow-hidden rounded-md ring-2 transition',
-                            actualIndex === activePhoto
+                            'relative min-w-0 overflow-hidden rounded-md ring-2 transition',
+                            photoIndex ===
+                              activePhoto
                               ? 'ring-accent'
-                              : 'ring-transparent hover:ring-border',
+                              : 'ring-transparent',
                           )}
-                          aria-label={`View photo ${actualIndex + 1}`}
+                          aria-label={`View photo ${
+                            photoIndex + 1
+                          }`}
                           aria-current={
-                            actualIndex === activePhoto
+                            photoIndex ===
+                            activePhoto
                               ? 'true'
                               : undefined
                           }
@@ -241,57 +355,65 @@ export default function PropertyDetailPage() {
                           <LockedImage
                             src={photo.url}
                             alt={photo.alt}
-                            locked={photo.protected && !isAuthed}
-                            previewUrl={photo.previewUrl}
-                            propertyId={property.id}
-                            className="h-full w-full"
+                            locked={
+                              photo.protected &&
+                              !isAuthed
+                            }
+                            previewUrl={
+                              photo.previewUrl
+                            }
+                            propertyId={
+                              property.id
+                            }
+                            className="aspect-square w-full"
                             compact
                           />
                         </button>
                       )
-                    })}
-                  </div>
-
-                  {/* LEFT ARROW */}
-                  {canGoPrevious && (
-                    <button
-                      type="button"
-                      onClick={goToPreviousThumbnails}
-                      className="absolute left-3 top-1/2 z-20 flex size-10 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-background/95 text-foreground shadow-md transition hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      aria-label="Previous photos"
-                    >
-                      <ChevronLeft className="size-5" />
-                    </button>
-                  )}
-
-                  {/* RIGHT ARROW */}
-                  {canGoNext && (
-                    <button
-                      type="button"
-                      onClick={goToNextThumbnails}
-                      className="absolute right-3 top-1/2 z-20 flex size-10 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-background/95 text-foreground shadow-md transition hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      aria-label="Next photos"
-                    >
-                      <ChevronRight className="size-5" />
-                    </button>
+                    },
                   )}
                 </div>
-              )}
 
-              {/* LOCKED PHOTO NOTICE */}
+                {/* NEXT THUMBNAILS */}
+                {photoCount >
+                  thumbnailCount && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={() =>
+                      shiftThumbnailWindow(1)
+                    }
+                    disabled={
+                      thumbnailStart ===
+                      maxThumbnailStart
+                    }
+                    aria-label="Next thumbnails"
+                    className="size-9 shrink-0 rounded-full sm:size-10"
+                  >
+                    <ChevronRight className="size-4" />
+                  </Button>
+                )}
+              </div>
+
+              {/* LOCKED PHOTOS MESSAGE */}
               {!isAuthed && (
                 <div className="flex items-center justify-between gap-4 rounded-md border border-border bg-secondary px-4 py-3">
                   <p className="flex items-center gap-2 text-sm text-foreground">
-                    <Lock className="size-4 text-primary" />
+                    <Lock className="size-4 text-accent" />
 
                     {
-                      property.photos.filter((p) => p.protected)
-                        .length
+                      property.photos.filter(
+                        (p) => p.protected,
+                      ).length
                     }{' '}
                     interior photos are locked.
                   </p>
 
-                  <Button size="sm" asChild>
+                  <Button
+                    size="sm"
+                    asChild
+                  >
                     <Link
                       href={`/register?redirect=/properties/${property.id}`}
                     >
@@ -303,63 +425,37 @@ export default function PropertyDetailPage() {
             </div>
           </div>
 
-          {/* RIGHT / DEAL PANEL */}
+          {/* DEAL PANEL */}
           <aside className="lg:sticky lg:top-20 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:h-fit lg:self-start">
-            <div className="flex flex-col gap-5 rounded-lg border border-border bg-card p-6">
-              {/* MOBILE PROPERTY HEADING */}
-              <div className="lg:hidden">
-                <div className="mb-4">
-                  <p className="text-sm text-muted-foreground">
-                    Asking price
-                  </p>
-
-                  <p className="font-display text-4xl font-bold tracking-tight text-foreground">
-                    {formatCurrency(property.price)}
-                  </p>
-                </div>
-
-                <PropertyHeading
-                  property={property}
-                  compact
-                />
-              </div>
-
-              {/* DESKTOP PROPERTY HEADING */}
-              <div className="hidden lg:block">
-                <div className="mb-2 lg:-mt-1">
-                  <p className="text-sm text-muted-foreground">
-                    Asking price
-                  </p>
-
-                  <p className="font-display text-4xl font-bold tracking-tight text-foreground">
-                    {formatCurrency(property.price)}
-                  </p>
-                </div>
-
-                <PropertyHeading
-                  property={property}
-                  compact
-                />
-              </div>
+            <div className="flex min-w-0 flex-col gap-5 rounded-lg border border-border bg-card p-5 sm:p-6">
+              <PropertyHeading
+                property={property}
+              />
 
               {/* FINANCIALS */}
               {isAuthed ? (
                 <dl className="flex flex-col gap-2.5 rounded-md bg-secondary p-4 text-sm">
                   <Row
                     label="After-repair value (ARV)"
-                    value={formatCurrency(property.arv)}
+                    value={formatCurrency(
+                      property.arv,
+                    )}
                   />
 
                   <Row
                     label="Estimated rehab"
-                    value={rehabLevelLabel(property.rehabLevel)}
+                    value={rehabLevelLabel(
+                      property.rehabLevel,
+                    )}
                   />
 
                   <div className="my-1 h-px bg-border" />
 
                   <Row
                     label="Estimated spread (ARV − price)"
-                    value={formatCurrency(spread)}
+                    value={formatCurrency(
+                      spread,
+                    )}
                     emphasize
                   />
                 </dl>
@@ -393,7 +489,10 @@ export default function PropertyDetailPage() {
                       Financials locked
                     </p>
 
-                    <Button size="sm" asChild>
+                    <Button
+                      size="sm"
+                      asChild
+                    >
                       <Link
                         href={`/register?redirect=/properties/${property.id}`}
                       >
@@ -405,29 +504,37 @@ export default function PropertyDetailPage() {
               )}
 
               {/* OFFER DEADLINE */}
-              {canTransact && property.offerDeadline && (
-                <OfferCountdown
-                  deadline={property.offerDeadline}
-                />
-              )}
+              {canTransact &&
+                property.offerDeadline && (
+                  <OfferCountdown
+                    deadline={
+                      property.offerDeadline
+                    }
+                  />
+                )}
 
-              {/* OFFER / SHOWING ACTIONS */}
+              {/* TRANSACTION ACTIONS */}
               {canTransact ? (
                 offersClosed ? (
                   <div className="flex flex-col gap-2.5">
                     <p className="rounded-md bg-secondary px-3 py-2 text-center text-sm text-muted-foreground">
-                      Offer submission for this property has
+                      Offer submission for
+                      this property has
                       closed.
                     </p>
 
                     {isAuthed && (
-                      <ShowingDialog property={property} />
+                      <ShowingDialog
+                        property={property}
+                      />
                     )}
                   </div>
                 ) : isAuthed ? (
                   <div className="flex flex-col gap-2.5">
                     <Dialog>
-                      <DialogTrigger asChild>
+                      <DialogTrigger
+                        asChild
+                      >
                         <Button size="lg">
                           Submit an offer
                         </Button>
@@ -440,24 +547,37 @@ export default function PropertyDetailPage() {
                           </DialogTitle>
 
                           <DialogDescription>
-                            {property.address} · Asking{' '}
-                            {formatCurrency(property.price)}
+                            {
+                              property.address
+                            }{' '}
+                            · Asking{' '}
+                            {formatCurrency(
+                              property.price,
+                            )}
                           </DialogDescription>
                         </DialogHeader>
 
-                        <OfferForm property={property} />
+                        <OfferForm
+                          property={property}
+                        />
                       </DialogContent>
                     </Dialog>
 
-                    <ShowingDialog property={property} />
+                    <ShowingDialog
+                      property={property}
+                    />
                   </div>
                 ) : (
                   <div className="flex flex-col gap-2.5">
-                    <Button size="lg" asChild>
+                    <Button
+                      size="lg"
+                      asChild
+                    >
                       <Link
                         href={`/register?redirect=/properties/${property.id}`}
                       >
-                        Register to make an offer
+                        Register to make an
+                        offer
                       </Link>
                     </Button>
 
@@ -476,7 +596,8 @@ export default function PropertyDetailPage() {
                 )
               ) : (
                 <p className="rounded-md bg-secondary px-3 py-2 text-center text-sm text-muted-foreground">
-                  This property is {property.status}.
+                  This property is{' '}
+                  {property.status}.
                 </p>
               )}
 
@@ -492,48 +613,25 @@ export default function PropertyDetailPage() {
                 <Bookmark
                   className={cn(
                     'size-4',
-                    saved && 'fill-current',
+                    saved &&
+                      'fill-current',
                   )}
                 />
 
-                {saved ? 'Saved' : 'Save property'}
+                {saved
+                  ? 'Saved'
+                  : 'Save property'}
               </Button>
 
               <p className="text-center text-xs text-muted-foreground">
-                Sold as-is. Figures are estimates, not
-                guarantees.
+                Sold as-is. Figures are
+                estimates, not guarantees.
               </p>
             </div>
           </aside>
 
-          {/* PROPERTY DETAILS */}
+          {/* LEFT-SIDE PROPERTY DETAILS */}
           <div className="flex flex-col gap-6 lg:col-start-1 lg:row-start-2">
-            {/* MOBILE STATS */}
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:hidden">
-              <Stat
-                icon={BedDouble}
-                label="Beds"
-                value={String(property.beds)}
-              />
-
-              <Stat
-                icon={Bath}
-                label="Baths"
-                value={String(property.baths)}
-              />
-
-              <Stat
-                icon={Ruler}
-                label="Sqft"
-                value={property.sqft.toLocaleString()}
-              />
-
-              <Stat
-                icon={CalendarClock}
-                label="Built"
-                value={String(property.yearBuilt)}
-              />
-            </div>
 
             {/* ABOUT */}
             <div>
@@ -570,14 +668,15 @@ export default function PropertyDetailPage() {
                         `${property.address}, ${property.city}, ${property.state} ${property.zip}`,
                       )}`,
                       {
-                        utm_campaign: 'property_map',
+                        utm_campaign:
+                          'property_map',
                       },
                     )}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center gap-1.5 border-t border-border bg-card px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-secondary"
                   >
-                    <MapPin className="size-4 text-primary" />
+                    <MapPin className="size-4 text-accent" />
 
                     Open in Google Maps
                   </a>
@@ -586,11 +685,16 @@ export default function PropertyDetailPage() {
                 <div className="mt-3 flex items-center justify-between gap-4 rounded-lg border border-dashed border-border p-4">
                   <p className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Lock className="size-4" />
-                    The exact location and map unlock after
-                    you register.
+
+                    The exact location and
+                    map unlock after you
+                    register.
                   </p>
 
-                  <Button size="sm" asChild>
+                  <Button
+                    size="sm"
+                    asChild
+                  >
                     <Link
                       href={`/register?redirect=/properties/${property.id}`}
                     >
@@ -608,20 +712,22 @@ export default function PropertyDetailPage() {
               </h2>
 
               <ul className="mt-3 grid gap-2 sm:grid-cols-2">
-                {property.highlights.map((highlight) => (
-                  <li
-                    key={highlight}
-                    className="flex items-start gap-2 rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground"
-                  >
-                    <TrendingUp className="mt-0.5 size-4 shrink-0 text-accent" />
+                {property.highlights.map(
+                  (h) => (
+                    <li
+                      key={h}
+                      className="flex items-start gap-2 rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground"
+                    >
+                      <TrendingUp className="mt-0.5 size-4 shrink-0 text-accent" />
 
-                    {highlight}
-                  </li>
-                ))}
+                      {h}
+                    </li>
+                  ),
+                )}
               </ul>
             </div>
 
-            {/* SHOWING INFO */}
+            {/* SHOWING INFORMATION */}
             <div>
               <h2 className="font-display text-xl font-bold text-foreground">
                 Showing information
@@ -636,7 +742,8 @@ export default function PropertyDetailPage() {
                   <p className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Lock className="size-4" />
 
-                    Showing details are visible to registered
+                    Showing details are
+                    visible to registered
                     investors.
                   </p>
 
@@ -662,23 +769,27 @@ export default function PropertyDetailPage() {
 }
 
 /**
- * Address, location, type and key facts.
+ * Top of the deal panel,
+ * rendered once for every breakpoint:
  *
- * Used inside the deal panel for mobile and desktop.
+ * status row → address → asking price →
+ * location → listed date → key facts
  */
 function PropertyHeading({
   property,
-  compact,
 }: {
   property: Property
-  compact?: boolean
 }) {
-  const fullAddress = `${property.address}, ${property.city}, ${property.state} ${property.zip}`
+  const fullAddress =
+    `${property.address}, ${property.city}, ${property.state} ${property.zip}`
 
   return (
     <div className="flex flex-col">
+      {/* STATUS / TYPE / VIEWS / COPY */}
       <div className="flex flex-wrap items-center gap-2">
-        <StatusBadge status={property.status} />
+        <StatusBadge
+          status={property.status}
+        />
 
         <span className="rounded-sm bg-secondary px-2.5 py-1 text-xs font-semibold text-foreground">
           {property.type}
@@ -707,7 +818,8 @@ function PropertyHeading({
             iconOnly
             variant="ghost"
             getValue={() =>
-              typeof window !== 'undefined'
+              typeof window !==
+              'undefined'
                 ? window.location.href
                 : ''
             }
@@ -722,62 +834,80 @@ function PropertyHeading({
         </div>
       </div>
 
-      <h1
-        className={cn(
-          'mt-1 break-words font-display font-bold leading-tight tracking-tight text-foreground',
-          compact
-            ? 'text-[2rem] text-balance'
-            : 'text-[2.25rem]',
-        )}
-      >
+      {/* ADDRESS */}
+      <h1 className="mt-3 break-words text-balance font-display text-[1.625rem] font-bold leading-tight tracking-tight text-foreground sm:text-[2rem] lg:text-[1.75rem]">
         {property.address}
       </h1>
 
-      <p className="mt-1 flex items-start gap-1.5 text-sm text-muted-foreground">
+      {/* ASKING PRICE */}
+      <div className="mt-3">
+        <p className="text-sm text-muted-foreground">
+          Asking price
+        </p>
+
+        <p className="font-display text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+          {formatCurrency(
+            property.price,
+          )}
+        </p>
+      </div>
+
+      {/* LOCATION */}
+      <p className="mt-4 flex items-start gap-1.5 text-sm text-muted-foreground">
         <MapPin className="mt-0.5 size-4 shrink-0" />
 
-        {property.neighborhood}, {property.city},{' '}
-        {property.state} {property.zip}
+        {property.neighborhood},{' '}
+        {property.city},{' '}
+        {property.state}{' '}
+        {property.zip}
       </p>
 
+      {/* LISTED */}
       <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
         <CalendarClock className="size-3.5" />
 
-        Listed {formatDate(property.createdAt)}
+        Listed{' '}
+        {formatDate(
+          property.createdAt,
+        )}
       </p>
 
       {/* PROPERTY FACTS */}
-      {compact && (
-        <dl className="mt-4 grid grid-cols-4 divide-x divide-border rounded-md border border-border">
-          <Fact
-            icon={BedDouble}
-            label="Beds"
-            value={String(property.beds)}
-          />
+      <dl className="mt-4 grid grid-cols-2 gap-px overflow-hidden rounded-md border border-border bg-border text-center min-[380px]:grid-cols-4">
+        <Fact
+          icon={BedDouble}
+          label="Beds"
+          value={String(
+            property.beds,
+          )}
+        />
 
-          <Fact
-            icon={Bath}
-            label="Baths"
-            value={String(property.baths)}
-          />
+        <Fact
+          icon={Bath}
+          label="Baths"
+          value={String(
+            property.baths,
+          )}
+        />
 
-          <Fact
-            icon={Ruler}
-            label="Sqft"
-            value={property.sqft.toLocaleString()}
-          />
+        <Fact
+          icon={Ruler}
+          label="Sqft"
+          value={property.sqft.toLocaleString()}
+        />
 
-          <Fact
-            icon={CalendarClock}
-            label="Built"
-            value={
-              property.yearBuilt
-                ? String(property.yearBuilt)
-                : '—'
-            }
-          />
-        </dl>
-      )}
+        <Fact
+          icon={CalendarClock}
+          label="Built"
+          value={
+            property.yearBuilt
+              ? String(
+                  property.yearBuilt,
+                )
+              : '—'
+          }
+        />
+      </dl>
     </div>
   )
 }
@@ -805,11 +935,14 @@ function ShowingDialog({
           </DialogTitle>
 
           <DialogDescription>
-            Schedule a walkthrough of {property.address}.
+            Schedule a walkthrough of{' '}
+            {property.address}.
           </DialogDescription>
         </DialogHeader>
 
-        <ShowingForm property={property} />
+        <ShowingForm
+          property={property}
+        />
       </DialogContent>
     </Dialog>
   )
@@ -825,8 +958,11 @@ function Fact({
   value: string
 }) {
   return (
-    <div className="flex flex-col items-center gap-1 px-2 py-3 text-center">
-      <Icon className="size-4 text-primary" />
+    <div className="flex min-w-0 flex-col items-center gap-0.5 bg-card px-1 py-2.5">
+      <Icon
+        className="size-4 text-accent"
+        aria-hidden="true"
+      />
 
       <dd className="font-display text-sm font-bold text-foreground">
         {value}
@@ -835,30 +971,6 @@ function Fact({
       <dt className="text-xs text-muted-foreground">
         {label}
       </dt>
-    </div>
-  )
-}
-
-function Stat({
-  icon: Icon,
-  label,
-  value,
-}: {
-  icon: typeof BedDouble
-  label: string
-  value: string
-}) {
-  return (
-    <div className="flex flex-col gap-1 rounded-md border border-border bg-card p-3">
-      <Icon className="size-4 text-primary" />
-
-      <span className="font-display text-lg font-bold text-foreground">
-        {value}
-      </span>
-
-      <span className="text-xs text-muted-foreground">
-        {label}
-      </span>
     </div>
   )
 }
