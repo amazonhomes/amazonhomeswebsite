@@ -400,7 +400,7 @@ export default function PropertyDetailPage() {
               {!isAuthed && (
                 <div className="flex items-center justify-between gap-4 rounded-md border border-border bg-secondary px-4 py-3">
                   <p className="flex items-center gap-2 text-sm text-foreground">
-                    <Lock className="size-4 text-accent" />
+                    <Lock className="size-4 text-primary" />
 
                     {
                       property.photos.filter(
@@ -676,7 +676,7 @@ export default function PropertyDetailPage() {
                     rel="noopener noreferrer"
                     className="flex items-center gap-1.5 border-t border-border bg-card px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-secondary"
                   >
-                    <MapPin className="size-4 text-accent" />
+                    <MapPin className="size-4 text-primary" />
 
                     Open in Google Maps
                   </a>
@@ -972,7 +972,7 @@ function Fact({
   return (
     <div className="flex min-w-0 flex-col items-center gap-0.5 bg-card px-1 py-2.5">
       <Icon
-        className="size-4 text-accent"
+        className="size-4 text-primary"
         aria-hidden="true"
       />
 
