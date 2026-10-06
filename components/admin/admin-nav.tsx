@@ -5,6 +5,7 @@ import {
   ArrowLeft,
   Building2,
   CalendarDays,
+  BriefcaseBusiness,
   HelpCircle,
   LayoutGrid,
   LineChart,
@@ -44,7 +45,7 @@ export type Section =
   | 'audit'
 
 /** Every selectable nav target, including account management (its own route). */
-export type AdminNavId = Section | 'accounts'
+export type AdminNavId = Section | 'accounts' | 'transactions'
 
 type SectionNavItem = { kind: 'section'; id: Section; label: string; icon: typeof LayoutGrid }
 type RouteNavItem = {
@@ -62,6 +63,13 @@ export const WORKSPACE_NAV: NavItem[] = [
   { kind: 'section', id: 'overview', label: 'Dashboard', icon: LayoutGrid },
   { kind: 'section', id: 'properties', label: 'Properties', icon: Building2 },
   { kind: 'section', id: 'offers', label: 'Offers', icon: LineChart },
+  {
+    kind: 'route',
+    id: 'transactions',
+    href: '/admin/transactions',
+    label: 'Transactions',
+    icon: BriefcaseBusiness,
+  },
   { kind: 'section', id: 'showings', label: 'Showings', icon: CalendarDays },
   { kind: 'section', id: 'messages', label: 'Messages', icon: Mail },
   { kind: 'section', id: 'investors', label: 'Investors', icon: Users },

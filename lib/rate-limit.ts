@@ -72,6 +72,10 @@ export const limiters = {
   // Notification read receipts. Cheap and idempotent, so generous enough for
   // an admin clicking through a long backlog.
   adminNotificationRead: makeLimiter(120, '1 m', 'rl:admin:notif-read'),
+  // Transaction Coordinator writes (create/edit/move/delete/columns), per admin.
+  adminTransactions: makeLimiter(120, '1 m', 'rl:admin:tx'),
+  // Document uploads, per admin.
+  adminTransactionUpload: makeLimiter(40, '10 m', 'rl:admin:tx-upload'),
 }
 
 export type LimiterName = keyof typeof limiters
