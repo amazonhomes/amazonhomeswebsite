@@ -3,9 +3,9 @@
 import Link from 'next/link'
 import {
   ArrowLeft,
+  BriefcaseBusiness,
   Building2,
   CalendarDays,
-  BriefcaseBusiness,
   HelpCircle,
   LayoutGrid,
   LineChart,
@@ -30,6 +30,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { toggleAdminSidebar, useAdminSidebarCollapsed } from '@/lib/admin-sidebar-store'
 import { formatCurrency } from '@/lib/format'
 import type { Inquiry, Offer, Property, ShowingRequest } from '@/lib/types'
 
@@ -154,8 +155,10 @@ function badgeFor(item: NavItem, badges?: NavBadges): number | undefined {
   return value && value > 0 ? value : undefined
 }
 
-const rowClass = (active: boolean) =>
-  `flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+const rowClass = (active: boolean, collapsed = false) =>
+  `relative flex items-center gap-3 rounded-md py-2 text-sm font-medium transition-colors ${
+    collapsed ? 'justify-center px-0' : 'px-3'
+  } ${
     active
       ? 'bg-secondary text-foreground'
       : 'text-muted-foreground hover:bg-secondary/60 hover:text-foreground'
@@ -184,31 +187,36 @@ export function AdminSidebar({
   onSelectSection,
   onQuickCreate,
 }: AdminSidebarProps) {
+  const collapsed = useAdminSidebarCollapsed()
+
   const renderItem = (item: NavItem) => {
     const Icon = item.icon
     const isActive = active === item.id
     const badge = badgeFor(item, badges)
     const inner = (
       <>
-        <Icon className="size-4" />
-        <span className="flex-1 text-left">{item.label}</span>
-        {badge !== undefined && (
-          <span className="flex min-w-5 items-center justify-center rounded-full bg-accent px-1.5 text-[11px] font-semibold text-accent-foreground">
-            {badge}
-          </span>
-        )}
+        <Icon className="size-4 shrink-0" />
+        <span className={collapsed ? 'sr-only' : 'flex-1 text-left'}>{item.label}</span>
+        {badge !== undefined &&
+          (collapsed ? (
+            <span className="absolute right-2 top-1.5 size-2 rounded-full bg-accent" aria-hidden />
+          ) : (
+            <span className="flex min-w-5 items-center justify-center rounded-full bg-accent px-1.5 text-[11px] font-semibold text-accent-foreground">
+              {badge}
+            </span>
+          ))}
       </>
     )
+    const common = {
+      'data-tour': item.id,
+      className: rowClass(isActive, collapsed),
+      'aria-current': isActive ? ('page' as const) : undefined,
+      title: collapsed ? item.label : undefined,
+    }
 
     if (item.kind === 'route') {
       return (
-        <Link
-          key={item.id}
-          href={item.href}
-          data-tour={item.id}
-          className={rowClass(isActive)}
-          aria-current={isActive ? 'page' : undefined}
-        >
+        <Link key={item.id} href={item.href} {...common}>
           {inner}
         </Link>
       )
@@ -216,87 +224,109 @@ export function AdminSidebar({
 
     if (onSelectSection) {
       return (
-        <button
-          key={item.id}
-          type="button"
-          data-tour={item.id}
-          onClick={() => onSelectSection(item.id)}
-          className={rowClass(isActive)}
-          aria-current={isActive ? 'page' : undefined}
-        >
+        <button key={item.id} type="button" onClick={() => onSelectSection(item.id)} {...common}>
           {inner}
         </button>
       )
     }
 
     return (
-      <Link
-        key={item.id}
-        href={sectionHref(item.id)}
-        data-tour={item.id}
-        className={rowClass(isActive)}
-        aria-current={isActive ? 'page' : undefined}
-      >
+      <Link key={item.id} href={sectionHref(item.id)} {...common}>
         {inner}
       </Link>
     )
   }
 
   return (
-    <aside className="sticky top-0 hidden h-dvh w-64 shrink-0 flex-col border-r border-border bg-card lg:flex">
-      <div className="flex items-center gap-2.5 px-6 py-5">
-        <img
+    <aside
+      id="admin-sidebar"
+      className={`sticky top-0 hidden h-dvh shrink-0 flex-col border-r border-border bg-card transition-[width] duration-200 lg:flex ${
+        collapsed ? 'w-16' : 'w-64'
+      }`}
+    >
+      <div className={`flex items-center gap-2.5 py-5 ${collapsed ? 'justify-center px-0' : 'px-6'}`}>
+        
+          <img
             src="/logo1.png"
             alt="Amazon Homes"
             className="size-9 rounded-sm object-contain"
           />
-        <div className="leading-tight">
+        
+        <div className={collapsed ? 'sr-only' : 'leading-tight'}>
           <p className="font-display text-sm font-bold tracking-tight text-foreground">
             Amazon Homes
           </p>
           <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
-            Metro Detroit Invesment Deals
+            Metro Detroit Investment Deals
           </p>
         </div>
       </div>
 
       <div className="px-3 pb-2">
         {onQuickCreate ? (
-          <Button onClick={onQuickCreate} data-tour="quick-create" className="w-full justify-start">
-            <Plus className="size-4" /> Quick create
+          <Button
+            onClick={onQuickCreate}
+            data-tour="quick-create"
+            title={collapsed ? 'Quick create' : undefined}
+            className={collapsed ? 'w-full justify-center px-0' : 'w-full justify-start'}
+          >
+            <Plus className="size-4" />
+            <span className={collapsed ? 'sr-only' : undefined}>Quick create</span>
           </Button>
         ) : (
-          <Button asChild data-tour="quick-create" className="w-full justify-start">
-            <Link href="/admin?section=properties&create=1">
-              <Plus className="size-4" /> Quick create
+          <Button
+            asChild
+            data-tour="quick-create"
+            className={collapsed ? 'w-full justify-center px-0' : 'w-full justify-start'}
+          >
+            <Link
+              href="/admin?section=properties&create=1"
+              title={collapsed ? 'Quick create' : undefined}
+            >
+              <Plus className="size-4" />
+              <span className={collapsed ? 'sr-only' : undefined}>Quick create</span>
             </Link>
           </Button>
         )}
       </div>
 
-      <nav className="flex flex-1 flex-col gap-1 px-3 py-2">
+      <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-3 py-2">
         {WORKSPACE_NAV.map(renderItem)}
 
-        <p className="px-3 pb-2 pt-5 text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
-          Content
-        </p>
+        {collapsed ? (
+          <span className="mx-2 my-3 h-px bg-border" aria-hidden />
+        ) : (
+          <p className="px-3 pb-2 pt-5 text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
+            Content
+          </p>
+        )}
         {CONTENT_NAV.map(renderItem)}
 
         <Link
           href="/properties"
-          className="mt-1 flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary/60 hover:text-foreground"
+          title={collapsed ? 'Investor marketplace' : undefined}
+          className={`mt-1 flex items-center gap-3 rounded-md py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary/60 hover:text-foreground ${
+            collapsed ? 'justify-center px-0' : 'px-3'
+          }`}
         >
-          <ArrowLeft className="size-4" />
-          Investor marketplace
+          <ArrowLeft className="size-4 shrink-0" />
+          <span className={collapsed ? 'sr-only' : undefined}>Investor marketplace</span>
         </Link>
       </nav>
 
       <div className="border-t border-border p-3">
-        <div className="flex items-center gap-3 rounded-md px-2 py-2">
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-secondary font-display text-sm font-bold text-foreground">
+        <div
+          className={`flex items-center gap-3 rounded-md py-2 ${
+            collapsed ? 'flex-col px-0' : 'px-2'
+          }`}
+        >
+          <span
+            title={collapsed ? `${user.name} (${user.email})` : undefined}
+            className="flex size-9 shrink-0 items-center justify-center rounded-full bg-secondary font-display text-sm font-bold text-foreground"
+          >
             {user.name.slice(0, 1).toUpperCase()}
           </span>
-          <div className="min-w-0 flex-1 leading-tight">
+          <div className={collapsed ? 'sr-only' : 'min-w-0 flex-1 leading-tight'}>
             <p className="truncate text-sm font-semibold text-foreground">{user.name}</p>
             <p className="truncate text-xs text-muted-foreground">{user.email}</p>
           </div>
@@ -385,10 +415,22 @@ export function AdminHeader({
   onSelectNotification,
   onStartTour,
 }: AdminHeaderProps) {
+  const collapsed = useAdminSidebarCollapsed()
+
   return (
     <header className="sticky top-0 z-10 flex items-center gap-3 border-b border-border bg-card/80 px-4 py-3 backdrop-blur sm:px-8">
-      <PanelLeft className="size-5 text-muted-foreground" aria-hidden />
-      <span className="h-4 w-px bg-border" />
+      <button
+        type="button"
+        onClick={toggleAdminSidebar}
+        aria-controls="admin-sidebar"
+        aria-expanded={!collapsed}
+        aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        className="-ml-1.5 hidden size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:flex"
+      >
+        <PanelLeft className="size-5" aria-hidden />
+      </button>
+      <span className="hidden h-4 w-px bg-border lg:block" />
       <h2 className="text-sm font-semibold text-foreground">{title}</h2>
       <div className="ml-auto flex items-center gap-3">
         <ThemeToggle />
