@@ -66,32 +66,11 @@ export function DocumentsField({ transactionId, field, documents, onChanged }: D
     onChanged()
   }
 
-  const open = async (doc: TransactionDocument, download: boolean) => {
-    // Opened synchronously so popup blockers allow it; the signed URL is filled in after.
-    const win = download ? null : window.open('about:blank', '_blank')
-    setBusy(doc.id)
-    const result = await txRequest<{ url: string }>(
-      `/api/admin/transactions/documents/${doc.id}${download ? '?download=1' : ''}`,
-      'GET',
-    )
-    setBusy(null)
-    if (!result.ok) {
-      win?.close()
-      toast.error(result.error)
-      return
-    }
-    if (win) {
-      win.opener = null
-      win.location.href = result.data.url
-    } else {
-      const a = document.createElement('a')
-      a.href = result.data.url
-      a.rel = 'noopener'
-      document.body.appendChild(a)
-      a.click()
-      a.remove()
-    }
-  }
+  // A real same-origin link: the browser opens the tab natively (no popup
+  // blocker, no scripted navigation) and the server redirects it to a
+  // short-lived signed URL after re-checking Admin + MFA and ownership.
+  const docUrl = (doc: TransactionDocument, download: boolean) =>
+    `/api/admin/transactions/${transactionId}/documents/${doc.id}${download ? '?download=1' : ''}`
 
   const remove = async (doc: TransactionDocument) => {
     setBusy(doc.id)
@@ -142,11 +121,15 @@ export function DocumentsField({ transactionId, field, documents, onChanged }: D
                 </div>
               ) : (
                 <div className="flex items-center gap-0.5">
-                  <Button type="button" size="icon-sm" variant="ghost" aria-label={`View ${doc.filename}`} disabled={busy !== null} onClick={() => open(doc, false)}>
-                    {busy === doc.id ? <Loader2 className="size-4 animate-spin" /> : <Eye className="size-4" />}
+                  <Button asChild size="icon-sm" variant="ghost">
+                    <a href={docUrl(doc, false)} target="_blank" rel="noopener noreferrer" aria-label={`View ${doc.filename} in a new tab`}>
+                      {busy === doc.id ? <Loader2 className="size-4 animate-spin" /> : <Eye className="size-4" />}
+                    </a>
                   </Button>
-                  <Button type="button" size="icon-sm" variant="ghost" aria-label={`Download ${doc.filename}`} disabled={busy !== null} onClick={() => open(doc, true)}>
-                    <Download className="size-4" />
+                  <Button asChild size="icon-sm" variant="ghost">
+                    <a href={docUrl(doc, true)} rel="noopener noreferrer" aria-label={`Download ${doc.filename}`}>
+                      <Download className="size-4" />
+                    </a>
                   </Button>
                   <Button type="button" size="icon-sm" variant="ghost" aria-label={`Replace ${doc.filename}`} disabled={busy !== null} onClick={() => pick(doc.id)}>
                     <RefreshCw className="size-4" />

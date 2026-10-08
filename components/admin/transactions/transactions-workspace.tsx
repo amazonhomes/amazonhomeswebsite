@@ -1,8 +1,8 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import useSWR from 'swr'
-import { BriefcaseBusiness, Columns3, Plus, RotateCw } from 'lucide-react'
+import { BriefcaseBusiness, Columns3, Maximize2, Minimize2, Plus, RotateCw } from 'lucide-react'
 import { ColumnsDialog } from '@/components/admin/transactions/columns-dialog'
 import { DeleteDialog, MoveDialog } from '@/components/admin/transactions/confirm-dialogs'
 import { TransactionDialog } from '@/components/admin/transactions/transaction-dialog'
@@ -48,6 +48,22 @@ export function TransactionsWorkspace() {
   const [statusFilter, setStatusFilter] = useState(ALL_STATUSES)
   const [page, setPage] = useState(0)
   const [dialog, setDialog] = useState<DialogState>(null)
+  const [fullSheet, setFullSheet] = useState(false)
+
+  // Escape exits Full Sheet View only when no dialog is open (the dialog owns Escape then).
+  useEffect(() => {
+    if (!fullSheet) return
+    const { overflow } = document.body.style
+    document.body.style.overflow = 'hidden'
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && dialog === null) setFullSheet(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => {
+      document.body.style.overflow = overflow
+      window.removeEventListener('keydown', onKey)
+    }
+  }, [fullSheet, dialog])
 
   const allFields = useMemo(() => data?.fields ?? [], [data])
   const stageFields = useMemo(
@@ -154,6 +170,38 @@ export function TransactionsWorkspace() {
         </div>
       </div>
 
+      <div
+        role={fullSheet ? 'dialog' : undefined}
+        aria-modal={fullSheet || undefined}
+        aria-label={fullSheet ? `Full sheet view: ${STAGE_LABELS[stage]}` : undefined}
+        className={cn(
+          'flex flex-col',
+          fullSheet ? 'fixed inset-0 z-40 gap-3 bg-secondary p-3 lg:p-4' : 'gap-5',
+        )}
+      >
+      {fullSheet && (
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-sm font-semibold text-foreground">
+            {'Transactions · '}
+            <span className="text-primary">{STAGE_LABELS[stage]}</span>
+          </p>
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline" onClick={() => setDialog({ kind: 'columns' })} disabled={!data}>
+              <Columns3 className="size-4" />
+              Manage columns
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => setDialog({ kind: 'create' })} disabled={!data}>
+              <Plus className="size-4" />
+              New transaction
+            </Button>
+            <Button size="sm" onClick={() => setFullSheet(false)}>
+              <Minimize2 className="size-4" />
+              Exit Full Sheet View
+            </Button>
+          </div>
+        </div>
+      )}
+
       <div role="tablist" aria-label="Transaction stage" className="flex gap-1 border-b border-border">
         {STAGES.map((s) => (
           <button
@@ -182,8 +230,19 @@ export function TransactionsWorkspace() {
         ))}
       </div>
 
-      <section className="overflow-hidden rounded-xl border border-border bg-card" aria-label={STAGE_LABELS[stage]}>
-        <div className="flex flex-col gap-3 border-b border-border p-4 sm:flex-row sm:items-center">
+      <section
+        className={cn(
+          'overflow-hidden rounded-xl border border-border bg-card',
+          fullSheet && 'flex min-h-0 flex-1 flex-col',
+        )}
+        aria-label={STAGE_LABELS[stage]}
+      >
+        <div
+          className={cn(
+            'flex flex-col gap-3 border-b border-border sm:flex-row sm:items-center',
+            fullSheet ? 'p-3' : 'p-4',
+          )}
+        >
           <div className="flex-1">
             <TableSearchInput
               value={query}
@@ -203,7 +262,7 @@ export function TransactionsWorkspace() {
               }}
             >
               <SelectTrigger className="w-full sm:w-48" aria-label="Filter by status">
-                <SelectValue />
+                <SelectValue>{(v: string | null) => (!v || v === ALL_STATUSES ? 'All statuses' : v)}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value={ALL_STATUSES}>All statuses</SelectItem>
@@ -214,6 +273,12 @@ export function TransactionsWorkspace() {
                 ))}
               </SelectContent>
             </Select>
+          )}
+          {!fullSheet && (
+            <Button variant="outline" className="hidden md:inline-flex" onClick={() => setFullSheet(true)} disabled={!data}>
+              <Maximize2 className="size-4" />
+              Full Sheet View
+            </Button>
           )}
         </div>
 
@@ -277,8 +342,14 @@ export function TransactionsWorkspace() {
               rows={pageRows}
               docCounts={docCounts}
               onOpen={(tx) => setDialog({ kind: 'edit', id: tx.id })}
+              fullSheet={fullSheet}
             />
-            <div className="flex flex-col items-center justify-between gap-3 border-t border-border px-4 py-3 sm:flex-row">
+            <div
+              className={cn(
+                'flex flex-col items-center justify-between gap-3 border-t border-border px-4 sm:flex-row',
+                fullSheet ? 'py-2' : 'py-3',
+              )}
+            >
               <p className="text-sm text-muted-foreground">
                 {rangeLabel(safePage, ROWS_PER_PAGE, pageRows.length, filtered.length)}
               </p>
@@ -287,6 +358,7 @@ export function TransactionsWorkspace() {
           </>
         )}
       </section>
+      </div>
 
       {(dialog?.kind === 'create' || editingTx) && (
         <TransactionDialog

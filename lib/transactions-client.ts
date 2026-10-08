@@ -17,7 +17,7 @@ export async function txRequest<T = Record<string, unknown>>(
       body: body ? (isForm ? body : JSON.stringify(body)) : undefined,
     })
     const data = (await res.json().catch(() => ({}))) as T & { error?: string }
-    if (!res.ok) return { ok: false, error: data.error ?? 'Something went wrong.' }
+    if (!res.ok) return { ok: false, error: data.error ?? `Request failed (${res.status}). Please try again.` }
     return { ok: true, data }
   } catch {
     return { ok: false, error: 'Network error. Please try again.' }

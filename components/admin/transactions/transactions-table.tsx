@@ -18,6 +18,35 @@ interface TransactionsTableProps {
   rows: Transaction[]
   docCounts: Map<string, number>
   onOpen: (tx: Transaction) => void
+  /** Full Sheet View: the table fills its parent and scrolls in both directions with a sticky header. */
+  fullSheet?: boolean
+}
+
+const NOTES_FIELD_KEY = 'notes'
+
+/** Width per column type so short fields stay narrow and long text wraps instead of widening the sheet. */
+function columnWidth(field: TransactionField): string {
+  if (field.key === ADDRESS_FIELD_KEY) return 'min-w-48 w-56 max-w-64'
+  if (field.key === STATUS_FIELD_KEY) return 'min-w-28 w-32'
+  if (field.key === NOTES_FIELD_KEY) return 'min-w-56 w-64 max-w-80'
+  switch (field.fieldType) {
+    case 'checkbox':
+      return 'min-w-20 w-24'
+    case 'file':
+      return 'min-w-24 w-28'
+    case 'date':
+      return 'min-w-28 w-28'
+    case 'link':
+      return 'min-w-20 w-20'
+    case 'select':
+      return 'min-w-28 w-32 max-w-40'
+    case 'date_location':
+      return 'min-w-32 w-40 max-w-48'
+    case 'textarea':
+      return 'min-w-40 w-48 max-w-60'
+    default:
+      return 'min-w-32 w-40 max-w-52'
+  }
 }
 
 const empty = <span className="text-muted-foreground">{'—'}</span>
@@ -84,7 +113,10 @@ function CellValue({
     }
     default:
       return typeof value === 'string' && value ? (
-        <span className="line-clamp-2 whitespace-pre-line text-sm" title={value}>
+        <span
+          className={`${field.key === NOTES_FIELD_KEY ? 'line-clamp-3' : 'line-clamp-2'} whitespace-pre-line break-words text-sm`}
+          title={value}
+        >
           {value}
         </span>
       ) : (
@@ -94,21 +126,21 @@ function CellValue({
 }
 
 /** Spreadsheet-style table on desktop, stacked cards on mobile. */
-export function TransactionsTable({ fields, rows, docCounts, onOpen }: TransactionsTableProps) {
+export function TransactionsTable({ fields, rows, docCounts, onOpen, fullSheet = false }: TransactionsTableProps) {
   const cardFields = fields.slice(1).filter((f) => f.key !== STATUS_FIELD_KEY).slice(0, 4)
 
   return (
     <>
-      <div className="hidden overflow-x-auto md:block">
-        <table className="w-full min-w-max border-separate border-spacing-0 text-left">
-          <thead>
+      <div className={fullSheet ? 'hidden min-h-0 flex-1 overflow-auto md:block' : 'hidden overflow-x-auto md:block'}>
+        <table className="w-full min-w-full border-separate border-spacing-0 text-left">
+          <thead className={fullSheet ? 'sticky top-0 z-20' : undefined}>
             <tr>
               {fields.map((f, i) => (
                 <th
                   key={f.id}
                   scope="col"
-                  className={`border-b border-border bg-secondary/60 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground ${
-                    i === 0 ? 'sticky left-0 z-10 min-w-56 bg-secondary' : 'min-w-36'
+                  className={`border-b border-border bg-secondary px-3 py-2 align-bottom text-[11px] font-semibold uppercase leading-tight tracking-wide text-muted-foreground ${columnWidth(f)} ${
+                    i === 0 ? 'sticky left-0 z-10 border-r' : ''
                   }`}
                 >
                   {f.label}
@@ -134,8 +166,8 @@ export function TransactionsTable({ fields, rows, docCounts, onOpen }: Transacti
                 {fields.map((f, i) => (
                   <td
                     key={f.id}
-                    className={`max-w-72 border-b border-border px-4 py-3 align-top transition-colors group-hover:bg-secondary/50 ${
-                      i === 0 ? 'sticky left-0 z-10 bg-card font-medium text-foreground' : 'text-foreground'
+                    className={`border-b border-border px-3 py-2 align-top [overflow-wrap:anywhere] transition-colors group-hover:bg-secondary/50 ${columnWidth(f)} ${
+                      i === 0 ? 'sticky left-0 z-10 border-r bg-card font-medium text-foreground group-hover:bg-secondary' : 'text-foreground'
                     }`}
                   >
                     {f.key === ADDRESS_FIELD_KEY ? (
