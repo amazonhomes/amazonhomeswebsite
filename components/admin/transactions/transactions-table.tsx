@@ -131,7 +131,9 @@ export function TransactionsTable({ fields, rows, docCounts, onOpen, fullSheet =
 
   return (
     <>
-      <div className={fullSheet ? 'hidden min-h-0 flex-1 overflow-auto md:block' : 'hidden overflow-x-auto md:block'}>
+      <div className={fullSheet
+      ? 'hidden min-h-0 flex-1 overflow-auto bg-white md:block'
+      : 'hidden overflow-x-auto bg-white md:block'}>
         <table className="w-full min-w-full border-separate border-spacing-0 text-left">
           <thead className={fullSheet ? 'sticky top-0 z-20' : undefined}>
             <tr>
@@ -139,7 +141,7 @@ export function TransactionsTable({ fields, rows, docCounts, onOpen, fullSheet =
                 <th
                   key={f.id}
                   scope="col"
-                  className={`border-b border-border bg-secondary px-3 py-2 align-bottom text-[11px] font-semibold uppercase leading-tight tracking-wide text-muted-foreground ${columnWidth(f)} ${
+                  className={`border-b border-border bg-white px-3 py-2 align-bottom text-[11px] font-semibold uppercase leading-tight tracking-wide text-muted-foreground ${columnWidth(f)} ${
                     i === 0 ? 'sticky left-0 z-10 border-r' : ''
                   }`}
                 >
