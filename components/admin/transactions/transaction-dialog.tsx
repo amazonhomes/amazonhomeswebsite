@@ -173,7 +173,7 @@ export function TransactionDialog({
             </div>
           </div>
         ) : (
-          <DialogFooter className="flex-row flex-wrap items-center gap-2 border-t border-border px-6 py-3 sm:justify-between">
+          <DialogFooter className="m-0 shrink-0 flex-row flex-wrap items-center gap-2 border-t border-border px-6 py-3 sm:justify-between">
             {!isNew ? (
               <div className="flex gap-1">
                 <Button type="button" variant="ghost" size="sm" onClick={() => onDelete(transaction)} disabled={saving}>

@@ -142,7 +142,7 @@ function RecordFooter({
   onClose: () => void
 }) {
   return (
-    <DialogFooter className="flex-col-reverse gap-2 sm:flex-row sm:justify-between sm:gap-2">
+    <DialogFooter className="m-0 shrink-0 flex-col-reverse gap-2 sm:flex-row sm:justify-between sm:gap-2">
       <Button variant="destructive" onClick={onDelete}>
         <Trash2 className="size-4" /> {deleteLabel}
       </Button>
