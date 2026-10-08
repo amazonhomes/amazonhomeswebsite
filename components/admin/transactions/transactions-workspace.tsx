@@ -24,6 +24,7 @@ import {
   valueText,
   type Stage,
   type Transaction,
+  type TransactionDocument,
   type TransactionsPayload,
 } from '@/lib/transactions'
 import { TRANSACTIONS_KEY, fetchTransactions } from '@/lib/transactions-client'
@@ -78,11 +79,13 @@ export function TransactionsWorkspace() {
 
   const transactions = useMemo(() => data?.transactions ?? [], [data])
   const documents = useMemo(() => data?.documents ?? [], [data])
-  const docCounts = useMemo(() => {
-    const map = new Map<string, number>()
+  const docsByCell = useMemo(() => {
+    const map = new Map<string, TransactionDocument[]>()
     for (const d of documents) {
       const key = `${d.transactionId}:${d.fieldKey}`
-      map.set(key, (map.get(key) ?? 0) + 1)
+      const list = map.get(key)
+      if (list) list.push(d)
+      else map.set(key, [d])
     }
     return map
   }, [documents])
@@ -176,7 +179,7 @@ export function TransactionsWorkspace() {
         aria-label={fullSheet ? `Full sheet view: ${STAGE_LABELS[stage]}` : undefined}
         className={cn(
           'flex flex-col',
-          fullSheet ? 'fixed inset-0 z-40 gap-3 bg-white dark:bg-[#242424] p-3 lg:p-4' : 'gap-5',
+          fullSheet ? 'fixed inset-0 z-40 gap-3 bg-secondary p-3 lg:p-4' : 'gap-5',
         )}
       >
       {fullSheet && (
@@ -340,7 +343,7 @@ export function TransactionsWorkspace() {
             <TransactionsTable
               fields={visibleFields}
               rows={pageRows}
-              docCounts={docCounts}
+              docsByCell={docsByCell}
               onOpen={(tx) => setDialog({ kind: 'edit', id: tx.id })}
               fullSheet={fullSheet}
             />
