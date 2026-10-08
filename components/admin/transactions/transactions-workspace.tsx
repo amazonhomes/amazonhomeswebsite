@@ -179,7 +179,7 @@ export function TransactionsWorkspace() {
         aria-label={fullSheet ? `Full sheet view: ${STAGE_LABELS[stage]}` : undefined}
         className={cn(
           'flex flex-col',
-          fullSheet ? 'fixed inset-0 z-40 gap-3 bg-secondary p-3 lg:p-4' : 'gap-5',
+          fullSheet ? 'fixed inset-0 z-40 gap-3 bg-white p-3 lg:p-4' : 'gap-5',
         )}
       >
       {fullSheet && (
