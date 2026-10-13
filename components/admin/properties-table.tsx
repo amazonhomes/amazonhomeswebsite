@@ -44,6 +44,7 @@ type Filter = 'all' | PropertyStatus
 
 const TABS: { id: Filter; label: string }[] = [
   { id: 'all', label: 'All listings' },
+  { id: 'draft', label: 'Drafts' },
   { id: 'available', label: 'Available' },
   { id: 'under-contract', label: 'Pending' },
   { id: 'sold', label: 'Sold' },

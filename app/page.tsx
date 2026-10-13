@@ -116,7 +116,7 @@ export default function HomePage() {
   const [featuredQuery, setFeaturedQuery] = useState("");
   const available = properties.filter((p) => p.status === "available").length;
 
-  const listable = properties.filter((p) => p.status !== "archived");
+const listable = properties.filter((p) => p.status !== 'archived' && p.status !== 'draft')
 
   // Top row: the 3 hottest deals — most submitted offers first (newest breaks ties).
   const hotDeals = [...listable]
@@ -221,7 +221,7 @@ export default function HomePage() {
           </div>
         </div>
         {featuredFiltered.length > 0 ? (
-          <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-8 grid min-w-0 grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {featuredFiltered.map((property, i) => {
               return (
                 <Reveal key={property.id} delay={i * 90}>

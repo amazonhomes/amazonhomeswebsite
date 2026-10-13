@@ -387,7 +387,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   // Load the public data anyone may read (RLS: select using true).
   const loadPublic = useCallback(async () => {
     const [props, tests, counts] = await Promise.all([
-      supabase.from('properties').select('*').order('created_at', { ascending: false }),
+      supabase
+        .from('properties')
+        .select('*')
+        .neq('status', 'draft')
+        .order('created_at', { ascending: false }),
       supabase.from('testimonials').select('*').order('created_at', { ascending: false }),
       supabase.from('property_offer_counts').select('property_id, offer_count'),
     ])
@@ -435,8 +439,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       // Any signed-in user may read premium property data (RLS on
       // property_private). Re-fetch both tables and merge so the premium fields
       // appear regardless of whether loadPublic has finished first.
+      const propertyQuery = profile.role === 'admin'
+        ? supabase.from('properties').select('*').order('created_at', { ascending: false })
+        : supabase
+            .from('properties')
+            .select('*')
+            .neq('status', 'draft')
+            .order('created_at', { ascending: false })
       const [pub, priv] = await Promise.all([
-        supabase.from('properties').select('*').order('created_at', { ascending: false }),
+        propertyQuery,
         supabase.from('property_private').select('*'),
       ])
       if (priv.data) privateRowsRef.current = priv.data

@@ -1,7 +1,20 @@
 'use client'
 
 import { useRef, useState } from 'react'
-import { ImagePlus, Loader2, Lock, LockOpen, X } from 'lucide-react'
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  TouchSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragStartEvent,
+} from '@dnd-kit/core'
+import { rectSortingStrategy, SortableContext, useSortable, arrayMove } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
+import { GripVertical, ImagePlus, Loader2, Lock, LockOpen, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import {
@@ -43,7 +56,7 @@ const propertyTypes: PropertyType[] = [
   'Fixer Upper',
 ]
 
-const statuses: PropertyStatus[] = ['available', 'under-contract', 'sold', 'archived']
+const statuses: PropertyStatus[] = ['draft', 'available', 'under-contract', 'sold', 'archived']
 
 const numericKeys = ['price', 'arv', 'beds', 'baths', 'sqft', 'yearBuilt'] as const
 type NumericKey = (typeof numericKeys)[number]
@@ -77,6 +90,80 @@ function parseNumeric(text: string): number | null {
   if (text.trim() === '') return null
   const n = Number(text)
   return Number.isFinite(n) ? n : null
+}
+
+function photoId(photo: Property['photos'][number]) {
+  return `${photo.url || 'photo'}-${photo.alt}`
+}
+
+function SortablePhotoCard({
+  photo,
+  index,
+  propertyId,
+  onToggleLock,
+  onRemove,
+}: {
+  photo: Property['photos'][number]
+  index: number
+  propertyId: string
+  onToggleLock: () => void
+  onRemove: () => void
+}) {
+  const id = photoId(photo)
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
+  const style = { transform: CSS.Transform.toString(transform), transition }
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`group relative overflow-hidden rounded-lg border border-border bg-background ${isDragging ? 'z-10 scale-[1.02] opacity-50 shadow-lg' : ''}`}
+    >
+      <LockedImage
+        src={photo.url}
+        alt={photo.alt || 'Property photo'}
+        locked={false}
+        previewUrl={photo.previewUrl}
+        propertyId={propertyId}
+        className="aspect-[4/3] w-full"
+      />
+      {index === 0 && (
+        <span className="absolute left-1.5 top-1.5 rounded bg-foreground px-1.5 py-0.5 text-[10px] font-semibold text-background">
+          Cover
+        </span>
+      )}
+      <button
+        type="button"
+        {...attributes}
+        {...listeners}
+        aria-label={`Reorder photo ${index + 1}`}
+        title="Drag to reorder"
+        className="absolute bottom-1.5 left-1.5 flex min-h-9 min-w-9 cursor-grab items-center justify-center rounded bg-background/90 text-foreground shadow-sm touch-none active:cursor-grabbing"
+      >
+        <GripVertical className="size-4" aria-hidden />
+      </button>
+      <div className="absolute right-1.5 top-1.5 flex gap-1">
+        <button
+          type="button"
+          onClick={onToggleLock}
+          title={photo.protected ? 'Locked — registered buyers only' : 'Public — visible to everyone'}
+          className="rounded bg-background/90 p-2 text-foreground shadow-sm transition-colors hover:bg-background"
+        >
+          {photo.protected ? <Lock className="size-3.5 text-[var(--accent)]" aria-hidden /> : <LockOpen className="size-3.5" aria-hidden />}
+          <span className="sr-only">Toggle photo lock</span>
+        </button>
+        <button
+          type="button"
+          onClick={onRemove}
+          title="Remove photo"
+          className="rounded bg-background/90 p-2 text-destructive shadow-sm transition-colors hover:bg-background"
+        >
+          <X className="size-3.5" aria-hidden />
+          <span className="sr-only">Remove photo</span>
+        </button>
+      </div>
+    </div>
+  )
 }
 
 function emptyDraft(): Property {
@@ -136,7 +223,7 @@ export function PropertyEditor({
         const value = e.target.value
         setNumText((t) => ({ ...t, [key]: value }))
       },
-      required: requiredNumeric[key],
+      required: saveMode === 'publish' && requiredNumeric[key],
     }
   }
 
@@ -196,7 +283,29 @@ export function PropertyEditor({
     }))
   }
 
+  function handleDragStart(event: DragStartEvent) {
+    setActivePhotoId(String(event.active.id))
+  }
+
+  function handleDragEnd(event: DragEndEvent) {
+    setActivePhotoId(null)
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    setDraft((current) => {
+      const oldIndex = current.photos.findIndex((photo) => photoId(photo) === active.id)
+      const newIndex = current.photos.findIndex((photo) => photoId(photo) === over.id)
+      return oldIndex < 0 || newIndex < 0 ? current : { ...current, photos: arrayMove(current.photos, oldIndex, newIndex) }
+    })
+  }
+
   const [saving, setSaving] = useState(false)
+  const [saveMode, setSaveMode] = useState<'draft' | 'publish'>('publish')
+  const formRef = useRef<HTMLFormElement>(null)
+  const [activePhotoId, setActivePhotoId] = useState<string | null>(null)
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 180, tolerance: 8 } }),
+  )
   // A ref (not state) so a rapid double-click can't slip past before re-render.
   const submittingRef = useRef(false)
 
@@ -207,15 +316,20 @@ export function PropertyEditor({
     const numbers = {} as Record<NumericKey, number>
     for (const key of numericKeys) {
       const parsed = parseNumeric(numText[key])
-      if (parsed === null && requiredNumeric[key]) {
+      if (saveMode === 'publish' && parsed === null && requiredNumeric[key]) {
         toast.error(`${numericLabels[key]} is required.`)
         return
       }
       numbers[key] = parsed ?? 0
     }
 
-    if (!draft.rehabLevel) {
+    if (saveMode === 'publish' && !draft.rehabLevel) {
       toast.error('Estimated rehab is required. Choose Light, Medium, or Large.')
+      return
+    }
+
+    if (saveMode === 'publish' && (!draft.address.trim() || !draft.city.trim() || !draft.zip.trim() || !draft.description.trim())) {
+      toast.error('Address, city, ZIP, and description are required to publish.')
       return
     }
 
@@ -234,7 +348,7 @@ export function PropertyEditor({
     setSaving(true)
     try {
       await saveProperty(
-        { ...draft, ...numbers, highlights },
+        { ...draft, ...numbers, status: saveMode === 'draft' ? 'draft' : draft.status, highlights },
         property ? { mode: 'edit', original: property } : { mode: 'create' },
       )
       toast.success(property ? 'Property updated' : 'Property added')
@@ -264,23 +378,16 @@ export function PropertyEditor({
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <form ref={formRef} onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Address">
-              <Input value={draft.address} onChange={(e) => set('address', e.target.value)} required />
-            </Field>
-            <Field label="Neighborhood">
-              <Input
-                value={draft.neighborhood}
-                onChange={(e) => set('neighborhood', e.target.value)}
-                required
-              />
+              <Input value={draft.address} onChange={(e) => set('address', e.target.value)} required={saveMode === 'publish'} />
             </Field>
             <Field label="City">
-              <Input value={draft.city} onChange={(e) => set('city', e.target.value)} required />
+              <Input value={draft.city} onChange={(e) => set('city', e.target.value)} required={saveMode === 'publish'} />
             </Field>
             <Field label="ZIP">
-              <Input value={draft.zip} onChange={(e) => set('zip', e.target.value)} required />
+              <Input value={draft.zip} onChange={(e) => set('zip', e.target.value)} required={saveMode === 'publish'} />
             </Field>
           </div>
 
@@ -314,55 +421,33 @@ export function PropertyEditor({
             </button>
 
             {draft.photos.length > 0 && (
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                {draft.photos.map((photo, i) => (
-                  <div
-                    key={`${photo.url.slice(0, 24)}-${i}`}
-                    className="group relative overflow-hidden rounded-lg border border-border"
-                  >
-                    {/* Stored protected originals are private Storage paths;
-                        LockedImage swaps them for a short-lived signed URL
-                        (admin session) without altering the stored value. */}
-                    <LockedImage
-                      src={photo.url}
-                      alt={photo.alt || 'Property photo'}
-                      locked={false}
-                      previewUrl={photo.previewUrl}
-                      propertyId={draft.id}
-                      className="aspect-[4/3] w-full"
-                    />
-                    {i === 0 && (
-                      <span className="absolute left-1.5 top-1.5 rounded bg-foreground px-1.5 py-0.5 text-[10px] font-semibold text-background">
-                        Cover
-                      </span>
-                    )}
-                    <div className="absolute right-1.5 top-1.5 flex gap-1">
-                      <button
-                        type="button"
-                        onClick={() => togglePhotoLock(i)}
-                        title={photo.protected ? 'Locked — registered buyers only' : 'Public — visible to everyone'}
-                        className="rounded bg-background/90 p-1 text-foreground shadow-sm transition-colors hover:bg-background"
-                      >
-                        {photo.protected ? (
-                          <Lock className="size-3.5 text-[var(--accent)]" aria-hidden />
-                        ) : (
-                          <LockOpen className="size-3.5" aria-hidden />
-                        )}
-                        <span className="sr-only">Toggle photo lock</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => removePhoto(i)}
-                        title="Remove photo"
-                        className="rounded bg-background/90 p-1 text-destructive shadow-sm transition-colors hover:bg-background"
-                      >
-                        <X className="size-3.5" aria-hidden />
-                        <span className="sr-only">Remove photo</span>
-                      </button>
-                    </div>
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragStart={handleDragStart}
+                onDragCancel={() => setActivePhotoId(null)}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext items={draft.photos.map(photoId)} strategy={rectSortingStrategy}>
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                    {draft.photos.map((photo, i) => (
+                      <SortablePhotoCard
+                        key={photoId(photo)}
+                        photo={photo}
+                        index={i}
+                        propertyId={draft.id}
+                        onToggleLock={() => togglePhotoLock(i)}
+                        onRemove={() => removePhoto(i)}
+                      />
+                    ))}
                   </div>
-                ))}
-              </div>
+                </SortableContext>
+                <DragOverlay>
+                  {activePhotoId ? (
+                    <div className="aspect-[4/3] w-36 rounded-lg border-2 border-[var(--accent)] bg-muted shadow-xl" />
+                  ) : null}
+                </DragOverlay>
+              </DndContext>
             )}
             <p className="text-xs text-muted-foreground">
               The first photo is the cover. Use the lock toggle to hide interior
@@ -468,7 +553,7 @@ export function PropertyEditor({
               value={draft.description}
               onChange={(e) => set('description', e.target.value)}
               rows={3}
-              required
+              required={saveMode === 'publish'}
             />
           </Field>
 
@@ -508,15 +593,20 @@ export function PropertyEditor({
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={saving} aria-busy={saving}>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                setSaveMode('draft')
+                formRef.current?.requestSubmit()
+              }}
+              disabled={saving}
+            >
+              Save as Draft
+            </Button>
+            <Button type="submit" disabled={saving} aria-busy={saving} onClick={() => setSaveMode('publish')}>
               {saving && <Loader2 className="size-4 animate-spin" aria-hidden />}
-              {saving
-                ? property
-                  ? 'Saving changes...'
-                  : 'Saving property...'
-                : property
-                  ? 'Save changes'
-                  : 'Add property'}
+              {saving ? 'Publishing...' : property?.status === 'draft' ? 'Publish Property' : property ? 'Save changes' : 'Publish Property'}
             </Button>
           </div>
         </form>

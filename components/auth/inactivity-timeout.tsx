@@ -52,6 +52,7 @@ function formatRemaining(ms: number) {
 export function InactivityTimeout() {
   const { currentUser, logout } = useStore()
   const pathname = usePathname()
+  if (currentUser?.role === 'admin') return null
   const [showWarning, setShowWarning] = useState(false)
   const [remaining, setRemaining] = useState(WARN_WINDOW_MS)
 

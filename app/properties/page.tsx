@@ -71,7 +71,7 @@ export default function PropertiesPage() {
   )
 
   const filtered = useMemo(() => {
-    let list = properties.filter((p) => p.status !== 'archived')
+    let list = properties.filter((p) => p.status !== 'archived' && p.status !== 'draft')
     if (query.trim()) {
       const q = query.toLowerCase()
       list = list.filter(
@@ -322,7 +322,7 @@ export default function PropertiesPage() {
         </div>
 
         {filtered.length > 0 ? (
-          <div className="mt-4 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-4 grid min-w-0 grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {filtered.map((property) => (
               <BadgedPropertyCard key={property.id} property={property} />
             ))}

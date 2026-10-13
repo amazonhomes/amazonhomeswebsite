@@ -1,4 +1,4 @@
-export type PropertyStatus = 'available' | 'under-contract' | 'sold' | 'archived'
+export type PropertyStatus = 'draft' | 'available' | 'under-contract' | 'sold' | 'archived'
 
 export type PropertyType =
   | 'Single Family'

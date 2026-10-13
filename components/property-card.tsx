@@ -55,17 +55,7 @@ export function PropertyCard({ property }: { property: Property }) {
   }
 
   return (
-    <article
-      className="
-        group relative overflow-hidden rounded-3xl
-        border border-neutral-200
-        bg-card p-2 shadow-sm
-        transition-all duration-300
-        hover:-translate-y-1
-        hover:border-primary/40
-        hover:shadow-xl
-      "
-    >
+    <article className="group relative min-w-0 w-full overflow-hidden rounded-3xl bg-card p-2 shadow-sm ring-1 ring-border transition-all hover:-translate-y-0.5 hover:shadow-lg">
       <div className="relative aspect-[3/4] overflow-hidden rounded-[1.35rem] bg-muted">
 
         {/* Property image */}
@@ -178,9 +168,9 @@ export function PropertyCard({ property }: { property: Property }) {
           <p className="flex items-center gap-1.5 text-sm text-white/85">
             <MapPin className="size-4 shrink-0 text-white/70" />
 
-            <span className="truncate">
-              {property.neighborhood}, {property.city}, {property.state}
-            </span>
+            <span className="min-w-0 break-words">
+              {[property.neighborhood, property.city, property.state].filter(Boolean).join(', ')}
+              </span>
           </p>
 
           {/* Property Specs */}
