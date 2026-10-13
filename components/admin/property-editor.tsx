@@ -1,6 +1,7 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import {
   DndContext,
   DragOverlay,
@@ -302,10 +303,16 @@ export function PropertyEditor({
   const [saveMode, setSaveMode] = useState<'draft' | 'publish'>('publish')
   const formRef = useRef<HTMLFormElement>(null)
   const [activePhotoId, setActivePhotoId] = useState<string | null>(null)
+  const [portalMounted, setPortalMounted] = useState(false)
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 180, tolerance: 8 } }),
   )
+  useEffect(() => {
+    setPortalMounted(true)
+    return () => setPortalMounted(false)
+  }, [])
+
   // A ref (not state) so a rapid double-click can't slip past before re-render.
   const submittingRef = useRef(false)
 
@@ -442,11 +449,25 @@ export function PropertyEditor({
                     ))}
                   </div>
                 </SortableContext>
-                <DragOverlay>
-                  {activePhotoId ? (
-                    <div className="aspect-[4/3] w-36 rounded-lg border-2 border-[var(--accent)] bg-muted shadow-xl" />
-                  ) : null}
-                </DragOverlay>
+                {portalMounted &&
+                  createPortal(
+                    <DragOverlay>
+                      {activePhotoId ? (
+                        <div className="w-[calc((min(100vw,42rem)-1.5rem)/3)] max-w-[12rem] overflow-hidden rounded-lg border border-border bg-background opacity-90 shadow-xl">
+                          <LockedImage
+                            src={draft.photos.find((photo) => photoId(photo) === activePhotoId)?.url ?? ''}
+                            alt="Dragging property photo"
+                            locked={false}
+                            previewUrl={draft.photos.find((photo) => photoId(photo) === activePhotoId)?.previewUrl}
+                            propertyId={draft.id}
+                            className="aspect-[4/3] w-full"
+                          />
+                        </div>
+                      ) : null}
+                    </DragOverlay>,
+                    document.body,
+                  )}
+
               </DndContext>
             )}
             <p className="text-xs text-muted-foreground">
