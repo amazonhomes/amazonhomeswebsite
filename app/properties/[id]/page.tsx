@@ -418,7 +418,7 @@ export default function PropertyDetailPage() {
         </Link>
       </Button>
     </div>
-  )}s
+  )}
             </div>
           </div>
 
