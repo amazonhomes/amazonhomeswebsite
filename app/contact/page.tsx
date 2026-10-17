@@ -24,7 +24,7 @@ export default function ContactPage() {
           <ContactCard
             icon={Phone}
             label="Phone"
-            value="(313) 555-0100"
+            value="(313) 880-4505"
             href="tel:+13135550100"
           />
           <ContactCard

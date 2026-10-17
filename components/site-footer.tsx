@@ -61,7 +61,7 @@ export function SiteFooter() {
           </h3>
           <p className="text-sm text-primary-foreground/70">Detroit, Michigan</p>
           <a href="tel:+13135550100" className="text-sm text-primary-foreground/70 hover:text-primary-foreground">
-            (313) 555-0100
+            (313) 880-4505
           </a>
           <a href="mailto:deals@amazonhomes.com" className="text-sm text-primary-foreground/70 hover:text-primary-foreground">
             deals@amazonhomes.com
