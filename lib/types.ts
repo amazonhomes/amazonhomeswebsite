@@ -53,6 +53,8 @@ export interface Property {
   createdAt: string // ISO date
   views: number
   featured: boolean
+  addressLocked: boolean
+  priceLocked: boolean
 }
 
 export type UserRole = 'investor' | 'admin'

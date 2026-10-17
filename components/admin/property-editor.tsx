@@ -39,6 +39,7 @@ import { LockedImage } from '@/components/locked-image'
 import { formatCurrency } from '@/lib/format'
 import { parseRehabLevel, REHAB_LEVELS } from '@/lib/rehab'
 import { useStore } from '@/lib/store'
+import { normalizeCoverPhoto } from '@/lib/property-images'
 import {
   BUSINESS_TZ_LABEL,
   utcIsoToZonedInput,
@@ -130,7 +131,7 @@ function SortablePhotoCard({
       />
       {index === 0 && (
         <span className="absolute left-1.5 top-1.5 rounded bg-foreground px-1.5 py-0.5 text-[10px] font-semibold text-background">
-          Cover
+          Cover · Public
         </span>
       )}
       <button
@@ -144,15 +145,17 @@ function SortablePhotoCard({
         <GripVertical className="size-4" aria-hidden />
       </button>
       <div className="absolute right-1.5 top-1.5 flex gap-1">
-        <button
-          type="button"
-          onClick={onToggleLock}
-          title={photo.protected ? 'Locked — registered buyers only' : 'Public — visible to everyone'}
-          className="rounded bg-background/90 p-2 text-foreground shadow-sm transition-colors hover:bg-background"
-        >
-          {photo.protected ? <Lock className="size-3.5 text-[var(--accent)]" aria-hidden /> : <LockOpen className="size-3.5" aria-hidden />}
-          <span className="sr-only">Toggle photo lock</span>
-        </button>
+        {index > 0 && (
+          <button
+            type="button"
+            onClick={onToggleLock}
+            title={photo.protected ? 'Locked — registered buyers only' : 'Public — visible to everyone'}
+            className="rounded bg-background/90 p-2 text-foreground shadow-sm transition-colors hover:bg-background"
+          >
+            {photo.protected ? <Lock className="size-3.5 text-[var(--accent)]" aria-hidden /> : <LockOpen className="size-3.5" aria-hidden />}
+            <span className="sr-only">Toggle photo lock</span>
+          </button>
+        )}
         <button
           type="button"
           onClick={onRemove}
@@ -193,6 +196,8 @@ function emptyDraft(): Property {
     createdAt: new Date().toISOString(),
     views: 0,
     featured: false,
+    addressLocked: false,
+    priceLocked: false,
   }
 }
 
@@ -206,7 +211,10 @@ export function PropertyEditor({
   onOpenChange: (open: boolean) => void
 }) {
   const { saveProperty } = useStore()
-  const [draft, setDraft] = useState<Property>(property ?? emptyDraft())
+  const [draft, setDraft] = useState<Property>(() => ({
+    ...(property ?? emptyDraft()),
+    photos: normalizeCoverPhoto(property?.photos ?? emptyDraft().photos),
+  }))
   const [highlightsText, setHighlightsText] = useState(
     (property?.highlights ?? []).join('\n'),
   )
@@ -276,11 +284,12 @@ export function PropertyEditor({
   }
 
   function togglePhotoLock(index: number) {
+    if (index === 0) return
     setDraft((d) => ({
       ...d,
-      photos: d.photos.map((p, i) =>
+      photos: normalizeCoverPhoto(d.photos.map((p, i) =>
         i === index ? { ...p, protected: !p.protected } : p,
-      ),
+      )),
     }))
   }
 
@@ -295,7 +304,9 @@ export function PropertyEditor({
     setDraft((current) => {
       const oldIndex = current.photos.findIndex((photo) => photoId(photo) === active.id)
       const newIndex = current.photos.findIndex((photo) => photoId(photo) === over.id)
-      return oldIndex < 0 || newIndex < 0 ? current : { ...current, photos: arrayMove(current.photos, oldIndex, newIndex) }
+      return oldIndex < 0 || newIndex < 0
+        ? current
+        : { ...current, photos: normalizeCoverPhoto(arrayMove(current.photos, oldIndex, newIndex)) }
     })
   }
 
@@ -387,9 +398,13 @@ export function PropertyEditor({
 
         <form ref={formRef} onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Address">
-              <Input value={draft.address} onChange={(e) => set('address', e.target.value)} required={saveMode === 'publish'} />
-            </Field>
+  <Field label="Address">
+  <Input value={draft.address} onChange={(e) => set('address', e.target.value)} required={saveMode === 'publish'} />
+  <label className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+    <input type="checkbox" checked={draft.addressLocked} onChange={(e) => set('addressLocked', e.target.checked)} />
+    Hide exact address from logged-out visitors
+  </label>
+  </Field>
             <Field label="City">
               <Input value={draft.city} onChange={(e) => set('city', e.target.value)} required={saveMode === 'publish'} />
             </Field>
@@ -477,9 +492,13 @@ export function PropertyEditor({
           </div>
 
           <div className="grid gap-4 sm:grid-cols-3">
-            <Field label="Price">
-              <Input {...numInputProps('price')} />
-            </Field>
+  <Field label="Price">
+  <Input {...numInputProps('price')} />
+  <label className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+    <input type="checkbox" checked={draft.priceLocked} onChange={(e) => set('priceLocked', e.target.checked)} />
+    Hide price from logged-out visitors
+  </label>
+  </Field>
             <Field label="ARV">
               <Input {...numInputProps('arv')} />
             </Field>

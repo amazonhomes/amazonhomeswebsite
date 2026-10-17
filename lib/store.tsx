@@ -162,6 +162,8 @@ function mapProperty(r: any): Property {
     createdAt: r.created_at,
     views: Number(r.views),
     featured: Boolean(r.featured),
+    addressLocked: Boolean(r.address_locked),
+    priceLocked: Boolean(r.price_locked),
   }
 }
 
@@ -258,12 +260,27 @@ function mapProfile(r: any): User {
  *  `properties` table never leaks premium interior imagery. The safe low-res
  *  `previewUrl`, `alt`, and `protected` flag stay so the locked gallery can
  *  render a real blurred preview (never the original) in the correct slot. */
+function maskPublicProperty(property: Property): Property {
+  return {
+    ...property,
+    address: property.addressLocked ? 'Location protected' : property.address,
+    price: property.priceLocked ? 0 : property.price,
+  }
+}
+
 function redactPhotos(photos: Property['photos']) {
-  return (photos ?? []).map((ph) =>
-    ph.protected
+  return (photos ?? []).map((ph, index) => {
+    if (index === 0) {
+      // The first photo is always the public cover. Legacy locked covers use
+      // their safe preview rather than exposing the private original path.
+      return ph.protected
+        ? { ...ph, url: ph.previewUrl ?? '', protected: false }
+        : { ...ph, protected: false }
+    }
+    return ph.protected
       ? { url: '', alt: ph.alt, protected: true, previewUrl: ph.previewUrl ?? null }
-      : ph,
-  )
+      : ph
+  })
 }
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -295,6 +312,8 @@ function propertyToRow(p: Property) {
     showing_info: '',
     offer_deadline: p.offerDeadline || null,
     featured: p.featured,
+    address_locked: p.addressLocked,
+    price_locked: p.priceLocked,
   }
 }
 
@@ -398,7 +417,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     if (props.data) {
       const mapped = props.data.map(mapProperty)
       const privateRows = privateRowsRef.current
-      setProperties(privateRows ? mergePrivate(mapped, privateRows) : mapped)
+      const merged = privateRows ? mergePrivate(mapped, privateRows) : mapped
+      setProperties(currentUser ? merged : merged.map(maskPublicProperty))
     }
     if (tests.data) setTestimonials(tests.data.map(mapTestimonial))
     if (counts.data) {
@@ -410,7 +430,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         ),
       )
     }
-  }, [supabase])
+  }, [supabase, currentUser])
 
   // Load the collections a signed-in user is allowed to see. Admins get every
   // offer, showing, inquiry and profile (RLS: is_admin()). A signed-in investor

@@ -83,6 +83,13 @@ interface PhotoResult {
   obsolete: StorageRef[]
 }
 
+export function normalizeCoverPhoto(photos: PropertyPhoto[]): PropertyPhoto[] {
+  if (photos.length === 0) return photos
+  return photos.map((photo, index) =>
+    index === 0 ? { ...photo, protected: false } : photo,
+  )
+}
+
 export interface PreparedPhotos {
   photos: PropertyPhoto[]
   /** Call after BOTH row writes succeed: deletes superseded originals. */
@@ -155,6 +162,7 @@ export async function preparePhotosForSave(
   photos: PropertyPhoto[],
   previousPhotos: PropertyPhoto[] = [],
 ): Promise<PreparedPhotos> {
+  photos = normalizeCoverPhoto(photos)
   const previous = new Map(previousPhotos.filter((p) => p.url).map((p) => [p.url, p.protected]))
 
   // Photos are independent, so process them concurrently; allSettled lets us

@@ -53,6 +53,8 @@ export const seedProperties: Property[] = [
     createdAt: pastDate(2),
     views: 342,
     featured: true,
+    addressLocked: false,
+    priceLocked: false,
   },
   {
     id: 'p-1002',
@@ -88,6 +90,8 @@ export const seedProperties: Property[] = [
     createdAt: pastDate(4),
     views: 511,
     featured: true,
+    addressLocked: false,
+    priceLocked: false,
   },
   {
     id: 'p-1003',
@@ -123,6 +127,8 @@ export const seedProperties: Property[] = [
     createdAt: pastDate(1),
     views: 208,
     featured: true,
+    addressLocked: false,
+    priceLocked: false,
   },
   {
     id: 'p-1004',
@@ -158,6 +164,8 @@ export const seedProperties: Property[] = [
     createdAt: pastDate(9),
     views: 733,
     featured: false,
+    addressLocked: false,
+    priceLocked: false,
   },
   {
     id: 'p-1005',
@@ -193,6 +201,8 @@ export const seedProperties: Property[] = [
     createdAt: pastDate(6),
     views: 897,
     featured: true,
+    addressLocked: false,
+    priceLocked: false,
   },
   {
     id: 'p-1006',
@@ -228,6 +238,8 @@ export const seedProperties: Property[] = [
     createdAt: pastDate(3),
     views: 264,
     featured: false,
+    addressLocked: false,
+    priceLocked: false,
   },
 ]
 

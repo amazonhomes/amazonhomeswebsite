@@ -32,6 +32,8 @@ export function PropertyCard({ property }: { property: Property }) {
   } = useStore()
 
   const favorite = savedPropertyIds.includes(property.id)
+  const showPrice = Boolean(currentUser) || !property.priceLocked
+  const showLocation = Boolean(currentUser) || !property.addressLocked
 
   const current = photos[Math.min(active, photos.length - 1)]
   const locked = Boolean(current?.protected && !current?.url)
@@ -101,17 +103,24 @@ export function PropertyCard({ property }: { property: Property }) {
 
         {/* Price */}
         <div
-          className="
-            absolute left-3 top-3 z-10
-            rounded-full
-            bg-black/65
-            px-4 py-2
-            text-sm font-bold text-white
-            shadow-sm backdrop-blur-md
-          "
-        >
-          {formatCurrency(property.price)}
-        </div>
+  className="
+    absolute left-3 top-3 z-10
+    rounded-full
+    bg-black/65
+    px-4 py-2
+    text-sm font-bold text-white
+    shadow-sm backdrop-blur-md
+  "
+>
+  {showPrice ? (
+    formatCurrency(property.price)
+  ) : (
+    <span className="inline-flex items-center gap-1.5">
+      <Lock className="size-3.5 shrink-0" />
+      Price locked
+    </span>
+  )}
+</div>
 
         {/* Favorite */}
         <button
@@ -147,7 +156,16 @@ export function PropertyCard({ property }: { property: Property }) {
           {/* Address + Property Type */}
           <div className="flex items-start justify-between gap-3">
             <h3 className="text-balance font-display text-lg font-bold leading-tight tracking-tight">
-              {property.address}
+             <span className="min-w-0 break-words">
+  {showLocation ? (
+    [property.city, property.state].filter(Boolean).join(', ')
+  ) : (
+    <span className="inline-flex items-center gap-1.5">
+      <Lock className="size-3.5 shrink-0" />
+      Location locked
+    </span>
+  )}
+</span>
             </h3>
 
             <span
@@ -169,9 +187,16 @@ export function PropertyCard({ property }: { property: Property }) {
             <MapPin className="size-4 shrink-0 text-white/70" />
 
             <span className="min-w-0 break-words">
-              {[property.neighborhood, property.city, property.state].filter(Boolean).join(', ')}
-              </span>
-          </p>
+  {showLocation ? (
+    [property.city, property.state].filter(Boolean).join(', ')
+  ) : (
+    <span className="inline-flex items-center gap-1.5">
+      <Lock className="size-3.5 shrink-0" />
+      Location locked
+    </span>
+  )}
+</span>
+</p>
 
           {/* Property Specs */}
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm text-white/90">
