@@ -158,7 +158,7 @@ export function PropertyCard({ property }: { property: Property }) {
             <h3 className="text-balance font-display text-lg font-bold leading-tight tracking-tight">
              <span className="min-w-0 break-words">
   {showLocation ? (
-    [property.city, property.state].filter(Boolean).join(', ')
+    [property.address, property.city, property.state].filter(Boolean).join(', ')
   ) : (
     <span className="inline-flex items-center gap-1.5">
       <Lock className="size-3.5 shrink-0" />
