@@ -51,14 +51,6 @@ export const metadata: Metadata = {
     description:
       'Off-market Detroit investment properties for serious buyers. Unlock protected photos and financials, submit offers, and request walkthroughs.',
   },
-icons: {
-    icon: [
-      { url: '/icon-32x32.png', type: 'image/png', sizes: '32x32' },
-      { url: '/icon-192x192.png', type: 'image/png', sizes: '192x192' },
-      { url: '/icon-512x512.png', type: 'image/png', sizes: '512x512' },
-    ],
-    apple: '/apple-icon.png',
-  },
 }
 
 export const viewport: Viewport = {
