@@ -51,7 +51,7 @@ const steps = [
 const stats = [
   { icon: Building2, value: "340+", label: "Deals closed" },
   { icon: TrendingUp, value: "$52M", label: "Investor volume" },
-  { icon: Handshake, value: "1,800+", label: "Verified buyers" },
+  { icon: Handshake, value: "5,800+", label: "Verified buyers" },
   { icon: MapPin, value: "12", label: "Detroit submarkets" },
 ];
 
