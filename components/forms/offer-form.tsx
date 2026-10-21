@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { PhoneInput } from '@/components/phone-input'
@@ -13,6 +13,31 @@ import { PURCHASE_METHODS } from '@/lib/rehab'
 import { useStore } from '@/lib/store'
 import type { Property, PurchaseMethod } from '@/lib/types'
 
+function formatOfferAmount(digits: string) {
+  if (!digits) return ''
+  return `$${Number(digits).toLocaleString('en-US')}`
+}
+
+function handleOfferAmountChange(
+  value: string,
+  selectionStart: number | null,
+  onChange: (value: string) => void,
+  inputRef: React.RefObject<HTMLInputElement | null>,
+) {
+  const cursor = selectionStart ?? value.length
+  const digitsBeforeCursor = value.slice(0, cursor).replace(/\\D/g, '').length
+  const digits = value.replace(/\\D/g, '')
+  const formatted = formatOfferAmount(digits)
+  onChange(formatted)
+
+  requestAnimationFrame(() => {
+    const nextCursor = digitsBeforeCursor === 0
+      ? (formatted ? 1 : 0)
+      : formatOfferAmount(digits.slice(0, digitsBeforeCursor)).length
+    inputRef.current?.setSelectionRange(nextCursor, nextCursor)
+  })
+}
+
 export function OfferForm({
   property,
   onDone,
@@ -23,6 +48,7 @@ export function OfferForm({
   const { currentUser, submitOffer } = useStore()
   const router = useRouter()
   const [amount, setAmount] = useState('')
+  const amountInputRef = useRef<HTMLInputElement>(null)
   const [notes, setNotes] = useState('')
   const [purchaseMethod, setPurchaseMethod] = useState<PurchaseMethod | null>(null)
   const [purchaseMethodOther, setPurchaseMethodOther] = useState('')
@@ -38,7 +64,7 @@ export function OfferForm({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (submitting) return
-    const numeric = Number(amount.replace(/[^0-9.]/g, ''))
+    const numeric = Number(amount.replace(/\D/g, ''))
     if (!numeric || numeric <= 0) {
       toast.error('Enter a valid offer amount.')
       return
@@ -144,11 +170,23 @@ export function OfferForm({
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="offer-amount">Offer amount (USD)</Label>
         <Input
+          ref={amountInputRef}
           id="offer-amount"
           inputMode="numeric"
           value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-          placeholder="e.g. 85000"
+          onChange={(e) =>
+            handleOfferAmountChange(
+              e.target.value,
+              e.target.selectionStart,
+              setAmount,
+              amountInputRef,
+            )
+          }
+          onKeyDown={(e) => {
+            if (e.key.length === 1 && !/[0-9]/.test(e.key)) e.preventDefault()
+          }}
+          placeholder="$85,000"
+          aria-label="Offer amount in US dollars"
           required
         />
       </div>
@@ -193,7 +231,7 @@ export function OfferForm({
           id="offer-special-terms"
           value={specialTerms}
           onChange={(e) => setSpecialTerms(e.target.value)}
-          placeholder="Agent fees, remarks, conditions…"
+          placeholder="Optional: close timeline, contingencies, earnest money…"
           rows={3}
         />
       </div>
