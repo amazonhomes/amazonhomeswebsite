@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { PhoneInput } from '@/components/phone-input'
@@ -13,31 +13,6 @@ import { PURCHASE_METHODS } from '@/lib/rehab'
 import { useStore } from '@/lib/store'
 import type { Property, PurchaseMethod } from '@/lib/types'
 
-function formatOfferAmount(digits: string) {
-  if (!digits) return ''
-  return `$${Number(digits).toLocaleString('en-US')}`
-}
-
-function handleOfferAmountChange(
-  value: string,
-  selectionStart: number | null,
-  onChange: (value: string) => void,
-  inputRef: React.RefObject<HTMLInputElement | null>,
-) {
-  const cursor = selectionStart ?? value.length
-  const digitsBeforeCursor = value.slice(0, cursor).replace(/\\D/g, '').length
-  const digits = value.replace(/\\D/g, '')
-  const formatted = formatOfferAmount(digits)
-  onChange(formatted)
-
-  requestAnimationFrame(() => {
-    const nextCursor = digitsBeforeCursor === 0
-      ? (formatted ? 1 : 0)
-      : formatOfferAmount(digits.slice(0, digitsBeforeCursor)).length
-    inputRef.current?.setSelectionRange(nextCursor, nextCursor)
-  })
-}
-
 export function OfferForm({
   property,
   onDone,
@@ -48,7 +23,6 @@ export function OfferForm({
   const { currentUser, submitOffer } = useStore()
   const router = useRouter()
   const [amount, setAmount] = useState('')
-  const amountInputRef = useRef<HTMLInputElement>(null)
   const [notes, setNotes] = useState('')
   const [purchaseMethod, setPurchaseMethod] = useState<PurchaseMethod | null>(null)
   const [purchaseMethodOther, setPurchaseMethodOther] = useState('')
@@ -64,7 +38,7 @@ export function OfferForm({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (submitting) return
-    const numeric = Number(amount.replace(/\D/g, ''))
+    const numeric = Number(amount)
     if (!numeric || numeric <= 0) {
       toast.error('Enter a valid offer amount.')
       return
@@ -125,7 +99,7 @@ export function OfferForm({
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor="offer-name">Full name</Label>
+          <Label htmlFor="offer-name">Full Name</Label>
           <Input id="offer-name" value={name} onChange={(e) => setName(e.target.value)} required />
         </div>
         <div className="flex flex-col gap-1.5">
@@ -168,22 +142,14 @@ export function OfferForm({
         </div>
       </div>
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="offer-amount">Offer amount (USD)</Label>
+        <Label htmlFor="offer-amount">Offer Amount</Label>
         <Input
-          ref={amountInputRef}
           id="offer-amount"
           inputMode="numeric"
-          value={amount}
-          onChange={(e) =>
-            handleOfferAmountChange(
-              e.target.value,
-              e.target.selectionStart,
-              setAmount,
-              amountInputRef,
-            )
-          }
-          onKeyDown={(e) => {
-            if (e.key.length === 1 && !/[0-9]/.test(e.key)) e.preventDefault()
+          value={amount ? `$${Number(amount).toLocaleString('en-US')}` : ''}
+          onChange={(e) => {
+            const digitsOnly = e.target.value.replace(/\D/g, '')
+            setAmount(digitsOnly)
           }}
           placeholder="$85,000"
           aria-label="Offer amount in US dollars"
@@ -191,7 +157,7 @@ export function OfferForm({
         />
       </div>
       <fieldset className="flex flex-col gap-2">
-        <legend className="mb-1.5 text-sm font-medium leading-none">Method of purchase</legend>
+        <legend className="mb-1.5 text-sm font-medium leading-none">Method Of Purchase</legend>
         <div className="grid grid-cols-3 gap-2">
           {PURCHASE_METHODS.map((m) => (
             <label
@@ -213,7 +179,7 @@ export function OfferForm({
         </div>
         {purchaseMethod === 'other' && (
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="offer-purchase-other">Specify method of purchase</Label>
+            <Label htmlFor="offer-purchase-other">Specify Method Of Purchase</Label>
             <Input
               id="offer-purchase-other"
               value={purchaseMethodOther}
@@ -226,7 +192,7 @@ export function OfferForm({
         )}
       </fieldset>
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="offer-special-terms">Special terms</Label>
+        <Label htmlFor="offer-special-terms">Special Terms</Label>
         <Textarea
           id="offer-special-terms"
           value={specialTerms}

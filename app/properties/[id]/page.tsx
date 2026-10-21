@@ -434,14 +434,14 @@ export default function PropertyDetailPage() {
               {isAuthed || !property.priceLocked ? (
                 <dl className="flex flex-col gap-2.5 rounded-md bg-secondary p-4 text-sm">
                   <Row
-                    label="After-repair value (ARV)"
+                    label="After-Repair Value (ARV)"
                     value={formatCurrency(
                       property.arv,
                     )}
                   />
 
                   <Row
-                    label="Estimated rehab"
+                    label="Estimated Rehab"
                     value={rehabLevelLabel(
                       property.rehabLevel,
                     )}
@@ -450,7 +450,7 @@ export default function PropertyDetailPage() {
                   <div className="my-1 h-px bg-border" />
 
                   <Row
-                    label="Estimated spread (ARV − price)"
+                    label="Estimated Spread (ARV − price)"
                     value={formatCurrency(
                       spread,
                     )}
@@ -464,17 +464,17 @@ export default function PropertyDetailPage() {
                     aria-hidden="true"
                   >
                     <Row
-                      label="After-repair value (ARV)"
+                      label="After-Repair Value (ARV)"
                       value="$000,000"
                     />
 
                     <Row
-                      label="Estimated rehab"
+                      label="Estimated Rehab"
                       value="Medium"
                     />
 
                     <Row
-                      label="Estimated spread"
+                      label="Estimated Spread"
                       value="$00,000"
                       emphasize
                     />
