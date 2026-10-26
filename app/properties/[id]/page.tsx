@@ -849,11 +849,6 @@ function PropertyHeading({
           {property.type}
         </span>
 
-        <span className="flex items-center gap-1 text-xs text-muted-foreground">
-          <Eye className="size-3.5" />
-          {property.views} views
-        </span>
-
         {/* DESKTOP COPY ICONS */}
         <div className="ml-auto hidden items-center gap-1 sm:flex">
           {showLocation && (
