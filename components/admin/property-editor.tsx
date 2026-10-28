@@ -192,12 +192,13 @@ function emptyDraft(): Property {
     highlights: [],
     photos: [{ url: '/properties/brick-bungalow-exterior.png', alt: 'Exterior', protected: false }],
     showingInfo: 'Contact us to arrange a showing.',
-    offerDeadline: new Date(Date.now() + 7 * 86400000).toISOString(),
+    offerDeadline: null,
     createdAt: new Date().toISOString(),
     views: 0,
     featured: false,
     addressLocked: false,
     priceLocked: false,
+    financialsLocked: false,
   }
 }
 
@@ -502,6 +503,14 @@ export function PropertyEditor({
             <Field label="ARV">
               <Input {...numInputProps('arv')} />
             </Field>
+            <label className="flex items-center gap-2 text-xs text-muted-foreground sm:col-span-3">
+              <input
+                type="checkbox"
+                checked={draft.financialsLocked}
+                onChange={(e) => set('financialsLocked', e.target.checked)}
+              />
+              Hide financials from logged-out visitors
+            </label>
             <Field label="Est. rehab">
               <Select
                 value={draft.rehabLevel ?? undefined}
@@ -560,18 +569,30 @@ export function PropertyEditor({
             </Field>
           </div>
 
-          <Field label={`Offer deadline (${BUSINESS_TZ_LABEL})`}>
-            <Input
-              type="datetime-local"
-              value={utcIsoToZonedInput(draft.offerDeadline)}
-              onChange={(e) =>
-                set('offerDeadline', zonedInputToUtcIso(e.target.value) ?? draft.offerDeadline)
-              }
-            />
-            <p className="text-xs text-muted-foreground">
-              Entered and shown in Detroit time. Offers are blocked once this passes.
-            </p>
-          </Field>
+  <Field label={`Offer Deadline (Optional) (${BUSINESS_TZ_LABEL})`}>
+  <label className="flex items-center gap-2 text-sm font-medium text-foreground">
+  <input
+  type="checkbox"
+  checked={Boolean(draft.offerDeadline)}
+  onChange={(e) => {
+  set('offerDeadline', e.target.checked ? new Date(Date.now() + 7 * 86400000).toISOString() : null)
+  }}
+  />
+  Enable offer deadline
+  </label>
+  {draft.offerDeadline && (
+  <Input
+  type="datetime-local"
+  value={utcIsoToZonedInput(draft.offerDeadline)}
+  onChange={(e) => set('offerDeadline', e.target.value ? zonedInputToUtcIso(e.target.value) : null)}
+  />
+  )}
+  <p className="text-xs text-muted-foreground">
+  {draft.offerDeadline
+  ? `Entered and shown in ${BUSINESS_TZ_LABEL}. Offers are blocked once this passes.`
+  : 'No deadline is set. Enable this option to choose when offers are due.'}
+  </p>
+  </Field>
 
           <div className="grid gap-4 sm:grid-cols-4">
             <Field label="Beds">

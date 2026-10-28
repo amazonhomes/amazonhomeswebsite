@@ -70,7 +70,9 @@ export default function PropertyDetailPage() {
 
   const countdown = useCountdown(property?.offerDeadline ?? null)
 
-  const offersClosed = Boolean(countdown?.expired)
+  const offersClosed = property?.offerDeadline
+    ? Boolean(countdown?.expired)
+    : false
 
   const saved = property
     ? savedPropertyIds.includes(property.id)
@@ -396,29 +398,35 @@ export default function PropertyDetailPage() {
                 )}
               </div>
 
-             {/* LOCKED PHOTOS MESSAGE */}
-{!isAuthed &&
-  property.photos.filter((p) => p.protected).length > 0 && (
-    <div className="flex items-center justify-between gap-4 rounded-md border border-border bg-secondary px-4 py-3">
-      <p className="flex items-center gap-2 text-sm text-foreground">
-        <Lock className="size-4 text-primary" />
+              {/* LOCKED PHOTOS MESSAGE */}
+              {!isAuthed &&
+                property.photos.filter(
+                  (p) => p.protected,
+                ).length > 0 && (
+                  <div className="flex items-center justify-between gap-4 rounded-md border border-border bg-secondary px-4 py-3">
+                    <p className="flex items-center gap-2 text-sm text-foreground">
+                      <Lock className="size-4 text-primary" />
 
-        {property.photos.filter((p) => p.protected).length}{' '}
-        interior photos are locked.
-      </p>
+                      {
+                        property.photos.filter(
+                          (p) => p.protected,
+                        ).length
+                      }{' '}
+                      interior photos are locked.
+                    </p>
 
-      <Button
-        size="sm"
-        asChild
-      >
-        <Link
-          href={`/register?redirect=/properties/${property.id}`}
-        >
-          Unlock
-        </Link>
-      </Button>
-    </div>
-  )}
+                    <Button
+                      size="sm"
+                      asChild
+                    >
+                      <Link
+                        href={`/register?redirect=/properties/${property.id}`}
+                      >
+                        Unlock
+                      </Link>
+                    </Button>
+                  </div>
+                )}
             </div>
           </div>
 
@@ -431,24 +439,24 @@ export default function PropertyDetailPage() {
               />
 
               {/* FINANCIALS */}
-              {isAuthed || !property.priceLocked ? (
-                <dl className="flex flex-col gap-2.5 rounded-md bg-secondary p-4 text-sm">
-                  <Row
-                    label="After-Repair Value (ARV)"
-                    value={formatCurrency(
-                      property.arv,
-                    )}
-                  />
+              <dl className="flex flex-col gap-2.5 rounded-md bg-secondary p-4 text-sm">
+                <Row
+                  label="After-repair value (ARV)"
+                  value={formatCurrency(
+                    property.arv,
+                  )}
+                />
 
-                  <Row
-                    label="Estimated Rehab"
-                    value={rehabLevelLabel(
-                      property.rehabLevel,
-                    )}
-                  />
+                <Row
+                  label="Estimated rehab"
+                  value={rehabLevelLabel(
+                    property.rehabLevel,
+                  )}
+                />
 
-                  <div className="my-1 h-px bg-border" />
+                <div className="my-1 h-px bg-border" />
 
+                {isAuthed || !property.financialsLocked ? (
                   <Row
                     label="Estimated Spread (ARV − price)"
                     value={formatCurrency(
@@ -456,50 +464,12 @@ export default function PropertyDetailPage() {
                     )}
                     emphasize
                   />
-                </dl>
-              ) : (
-                <div className="relative overflow-hidden rounded-md bg-secondary p-4">
-                  <div
-                    className="flex flex-col gap-2.5 text-sm blur-sm select-none"
-                    aria-hidden="true"
-                  >
-                    <Row
-                      label="After-Repair Value (ARV)"
-                      value="$000,000"
-                    />
-
-                    <Row
-                      label="Estimated Rehab"
-                      value="Medium"
-                    />
-
-                    <Row
-                      label="Estimated Spread"
-                      value="$00,000"
-                      emphasize
-                    />
-                  </div>
-
-                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-card/40 text-center">
-                    <Lock className="size-5 text-accent" />
-
-                    <p className="text-xs font-medium text-foreground">
-                      Financials locked
-                    </p>
-
-                    <Button
-                      size="sm"
-                      asChild
-                    >
-                      <Link
-                        href={`/register?redirect=/properties/${property.id}`}
-                      >
-                        Register to view
-                      </Link>
-                    </Button>
-                  </div>
-                </div>
-              )}
+                ) : (
+                  <LockedSpreadRow
+                    redirect={`/login?redirect=/properties/${property.id}`}
+                  />
+                )}
+              </dl>
 
               {/* OFFER DEADLINE */}
               {canTransact &&
@@ -819,6 +789,35 @@ function LockedValueCard({
           </Link>
         </Button>
       </div>
+    </div>
+  )
+}
+
+function LockedSpreadRow({
+  redirect,
+}: {
+  redirect: string
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <Link
+        href={redirect}
+        className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground transition-colors hover:text-primary hover:underline"
+      >
+        Register to view Estimated Spread
+
+        <Lock
+          className="size-4 shrink-0 text-primary"
+          aria-hidden="true"
+        />
+      </Link>
+
+      <span
+        className="select-none font-display text-base font-bold text-foreground blur-[4px]"
+        aria-hidden="true"
+      >
+        $100,100
+      </span>
     </div>
   )
 }

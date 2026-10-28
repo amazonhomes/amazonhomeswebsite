@@ -49,12 +49,13 @@ export interface Property {
   highlights: string[]
   photos: PropertyPhoto[]
   showingInfo: string
-  offerDeadline: string // ISO date
+  offerDeadline: string | null // ISO date, optional
   createdAt: string // ISO date
   views: number
   featured: boolean
   addressLocked: boolean
   priceLocked: boolean
+  financialsLocked: boolean
 }
 
 export type UserRole = 'investor' | 'admin'

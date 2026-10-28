@@ -136,6 +136,14 @@ const StoreContext = createContext<StoreContextValue | null>(null)
 
 /* ---------- row -> app mappers (snake_case DB -> camelCase types) ---------- */
 
+function publicRehabLevel(value: unknown) {
+  if (value === 'light' || value === 'medium' || value === 'large') return value
+  if (Number(value) === 1) return 'light'
+  if (Number(value) === 2) return 'medium'
+  if (Number(value) === 3) return 'large'
+  return null
+}
+
 function mapProperty(r: any): Property {
   return {
     id: r.id,
@@ -146,7 +154,7 @@ function mapProperty(r: any): Property {
     zip: r.zip,
     price: Number(r.price),
     arv: Number(r.arv),
-    rehabLevel: null,
+    rehabLevel: publicRehabLevel(r.rehab_level ?? r.estimated_rehab),
     type: r.type,
     status: r.status,
     beds: Number(r.beds),
@@ -158,12 +166,13 @@ function mapProperty(r: any): Property {
     highlights: r.highlights ?? [],
     photos: r.photos ?? [],
     showingInfo: r.showing_info,
-    offerDeadline: r.offer_deadline ?? '',
+    offerDeadline: r.offer_deadline ?? null,
     createdAt: r.created_at,
     views: Number(r.views),
     featured: Boolean(r.featured),
     addressLocked: Boolean(r.address_locked),
     priceLocked: Boolean(r.price_locked),
+    financialsLocked: Boolean(r.financials_locked),
   }
 }
 
@@ -297,8 +306,8 @@ function propertyToRow(p: Property) {
     state: p.state,
     zip: p.zip,
     price: p.price,
-    arv: 0,
-    estimated_rehab: 0,
+    arv: p.arv,
+    estimated_rehab: p.rehabLevel === 'light' ? 1 : p.rehabLevel === 'medium' ? 2 : p.rehabLevel === 'large' ? 3 : 0,
     type: p.type,
     status: p.status,
     beds: p.beds,
@@ -314,6 +323,7 @@ function propertyToRow(p: Property) {
     featured: p.featured,
     address_locked: p.addressLocked,
     price_locked: p.priceLocked,
+    financials_locked: p.financialsLocked,
   }
 }
 
