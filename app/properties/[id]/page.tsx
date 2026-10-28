@@ -441,14 +441,14 @@ export default function PropertyDetailPage() {
               {/* FINANCIALS */}
               <dl className="flex flex-col gap-2.5 rounded-md bg-secondary p-4 text-sm">
                 <Row
-                  label="After-repair value (ARV)"
+                  label="After-Repair Value (ARV)"
                   value={formatCurrency(
                     property.arv,
                   )}
                 />
 
                 <Row
-                  label="Estimated rehab"
+                  label="Estimated Rehab"
                   value={rehabLevelLabel(
                     property.rehabLevel,
                   )}
