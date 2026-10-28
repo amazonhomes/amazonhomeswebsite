@@ -58,7 +58,7 @@ const stats = [
 const faqs = [
   {
     q: "Why are photos and financials locked?",
-    a: "We keep interior photos and deal numbers behind a free account to protect our sellers and keep our buyers list qualified. Registering takes seconds and instantly unlocks the full gallery, ARV, and rehab estimates on every listing.",
+    a: "We keep interior photos and deal numbers behind a free account to protect our sellers and keep our buyers list qualified. Registering takes seconds and instantly unlocks the full gallery.",
   },
   {
     q: "Does it cost anything to join the buyers list?",
