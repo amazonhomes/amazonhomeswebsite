@@ -509,7 +509,7 @@ export function PropertyEditor({
                 checked={draft.financialsLocked}
                 onChange={(e) => set('financialsLocked', e.target.checked)}
               />
-              Hide financials from logged-out visitors
+              Hide Estimated Spread from logged-out visitors
             </label>
             <Field label="Est. rehab">
               <Select
