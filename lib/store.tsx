@@ -88,7 +88,7 @@ interface StoreContextValue {
     },
   ) => Promise<{ ok: boolean; error?: string }>
   submitInquiry: (
-    input: Omit<Inquiry, 'id' | 'status' | 'createdAt' | 'replies' | 'readAt'>,
+    input: Omit<Inquiry, 'id' | 'status' | 'createdAt' | 'replies' | 'readAt' | 'archived'>,
   ) => Promise<{ ok: boolean; error?: string }>
   incrementViews: (propertyId: string) => Promise<void>
   /** Toggle a bookmark for the signed-in user. Optimistic: flips local state
@@ -107,6 +107,8 @@ interface StoreContextValue {
   updateInquiryStatus: (id: string, status: Inquiry['status']) => Promise<void>
   /** Marks a conversation as read (no-op if already read). */
   markInquiryRead: (id: string) => Promise<void>
+  setInquiryRead: (id: string, read: boolean) => Promise<{ ok: boolean; error?: string }>
+  archiveInquiry: (id: string, archived: boolean) => Promise<void>
   replyToInquiry: (id: string, body: string) => Promise<void>
   /** Admin-only: emails the lead directly and marks the inquiry responded. */
   sendAdminReply: (id: string, body: string) => Promise<{ ok: boolean; error?: string }>
@@ -225,6 +227,7 @@ function mapInquiry(r: any): Inquiry {
     replies: Array.isArray(r.replies) ? r.replies : [],
     createdAt: r.created_at,
     readAt: r.read_at ?? null,
+  archived: Boolean(r.archived),
   }
 }
 
@@ -973,17 +976,36 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [supabase, inquiries],
   )
 
-  /** Marks a conversation as read the first time the admin opens it. A no-op
-   *  once `readAt` is already set, so re-opening a thread never re-writes it. */
-  const markInquiryRead = useCallback<StoreContextValue['markInquiryRead']>(
-    async (id) => {
+  const setInquiryRead = useCallback<StoreContextValue['setInquiryRead']>(
+    async (id, read) => {
       const existing = inquiries.find((i) => i.id === id)
-      if (!existing || existing.readAt) return
-      const readAt = new Date().toISOString()
-      setInquiries((prev) => prev.map((i) => (i.id === id ? { ...i, readAt } : i)))
-      await supabase.from('inquiries').update({ read_at: readAt }).eq('id', id)
+      if (!existing) return { ok: false, error: 'Message not found.' }
+      const previousReadAt = existing.readAt
+      const nextReadAt = read ? previousReadAt ?? new Date().toISOString() : null
+      if ((read && previousReadAt) || (!read && !previousReadAt)) return { ok: true }
+      setInquiries((prev) => prev.map((i) => (i.id === id ? { ...i, readAt: nextReadAt } : i)))
+      const { error } = await supabase.from('inquiries').update({ read_at: nextReadAt }).eq('id', id)
+      if (error) {
+        setInquiries((prev) => prev.map((i) => (i.id === id ? { ...i, readAt: previousReadAt } : i)))
+        return { ok: false, error: error.message }
+      }
+      return { ok: true }
     },
     [supabase, inquiries],
+  )
+
+  /** Marks a conversation as read when the admin opens it. */
+  const markInquiryRead = useCallback<StoreContextValue['markInquiryRead']>(
+    async (id) => { await setInquiryRead(id, true) },
+    [setInquiryRead],
+  )
+
+  const archiveInquiry = useCallback<StoreContextValue['archiveInquiry']>(
+    async (id, archived) => {
+      await supabase.from('inquiries').update({ archived }).eq('id', id)
+      setInquiries((prev) => prev.map((i) => (i.id === id ? { ...i, archived } : i)))
+    },
+    [supabase],
   )
 
   const replyToInquiry = useCallback<StoreContextValue['replyToInquiry']>(
@@ -1162,8 +1184,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       deleteOffer,
       deleteShowing,
       updateInquiryStatus,
-      markInquiryRead,
-      replyToInquiry,
+  markInquiryRead,
+  setInquiryRead,
+  archiveInquiry,
+  replyToInquiry,
       sendAdminReply,
       deleteInquiry,
       startConversation,
@@ -1199,8 +1223,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       deleteOffer,
       deleteShowing,
       updateInquiryStatus,
-      markInquiryRead,
-      replyToInquiry,
+  markInquiryRead,
+  setInquiryRead,
+  archiveInquiry,
+  replyToInquiry,
       sendAdminReply,
       deleteInquiry,
       startConversation,

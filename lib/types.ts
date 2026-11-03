@@ -132,6 +132,7 @@ export interface Inquiry {
   /** When the admin last opened this conversation. Null = unread. Distinct
    *  from `status`, which tracks whether the admin has responded. */
   readAt: string | null
+  archived: boolean
   }
 
 export interface Testimonial {

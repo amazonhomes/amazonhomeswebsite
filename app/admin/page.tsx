@@ -5,18 +5,23 @@ import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import {
   Building2,
+  CalendarCheck,
   CalendarDays,
+  CheckCircle2,
   LayoutGrid,
   LineChart,
   Mail,
   MoreHorizontal,
   Eye,
+  Upload,
+  XCircle,
   Plus,
   Star,
   Trash2,
   TrendingDown,
   TrendingUp,
   Users,
+  icons,
 } from 'lucide-react'
 
 import { ActivityChart } from '@/components/admin/activity-chart'
@@ -30,7 +35,7 @@ import {
   type Section,
 } from '@/components/admin/admin-nav'
 import { AdminTour, type TourStep } from '@/components/admin/admin-tour'
-import { DataTable, type Column } from '@/components/admin/data-table'
+import { DataTable, type BulkAction, type Column } from '@/components/admin/data-table'
 import { MessagesInbox } from '@/components/admin/messages-inbox'
 import type { Notification } from '@/components/admin/notification-bell'
 import { PropertiesTable } from '@/components/admin/properties-table'
@@ -239,12 +244,15 @@ function AdminDashboard() {
     auditLogs,
     logout,
     deleteProperty,
+    saveProperty,
     updateOfferStatus,
     updateShowingStatus,
     deleteOffer,
     deleteShowing,
     updateInquiryStatus,
     markInquiryRead,
+    setInquiryRead,
+    archiveInquiry,
     sendAdminReply,
     deleteInquiry,
     startConversation,
@@ -365,6 +373,139 @@ function AdminDashboard() {
     () => Object.fromEntries(properties.map((p) => [p.id, p])),
     [properties],
   )
+  const bulkUpdate = async <T extends { id: string }>(
+    rows: T[],
+    update: (row: T) => Promise<void>,
+    label: string,
+  ) => {
+    const results = await Promise.allSettled(rows.map(update))
+    const failed = results.filter((result) => result.status === 'rejected').length
+    if (failed) toast.error(`${failed} ${label} failed to update.`)
+    else toast.success(`${rows.length} ${label} updated.`)
+    return failed ? { failed: rows.slice(0, failed).map((row) => row.id) } : undefined
+  }
+
+  const bulkDelete = async <T extends { id: string }>(
+    rows: T[],
+    label: string,
+    remove: (id: string) => Promise<{ ok: boolean; error?: string }>,
+  ) => {
+    const confirmed = await confirm({
+      title: `Delete ${rows.length} ${label}?`,
+      description: `This permanently deletes the selected ${label}. This cannot be undone.`,
+      confirmLabel: `Delete ${label}`,
+      destructive: true,
+    })
+    if (!confirmed) return { failed: rows.map((row) => row.id) }
+    const results = await Promise.all(rows.map(async (row) => ({ id: row.id, result: await remove(row.id) })))
+    const failed = results.filter(({ result }) => !result.ok)
+    if (failed.length) {
+      toast.error(`${failed.length} ${label} failed to delete.`)
+      return { failed: failed.map(({ id }) => id) }
+    }
+    toast.success(`${rows.length} ${label} deleted.`)
+    return undefined
+  }
+
+  const propertyBulkActions = [
+    {
+       id: 'delete',
+      label: 'Delete selected',
+      variant: 'destructive' as const,
+      icon: Trash2,
+      run: async (ids: string[]) => {
+        const confirmed = await confirm({
+          title: `Delete ${ids.length} properties?`,
+          description: 'This permanently removes the selected listings and their associated data. This cannot be undone.',
+          confirmLabel: 'Delete selected',
+          destructive: true,
+        })
+        if (!confirmed) return { failed: ids }
+        const results = await Promise.allSettled(ids.map((id) => deleteProperty(id)))
+        const failed = results.filter((result) => result.status === 'rejected').length
+        if (failed) toast.error(`${failed} properties failed to delete.`)
+        else toast.success(`${ids.length} properties deleted.`)
+        return failed ? { failed: ids.slice(0, failed) } : undefined
+      },
+    },
+    {
+      id: 'publish',
+      label: 'Publish Drafts',
+      icon: Upload,
+      run: async (ids: string[]) => {
+        const drafts = ids.map((id) => properties.find((property) => property.id === id)).filter((property): property is Property => Boolean(property && property.status === 'draft'))
+        const results = await Promise.allSettled(drafts.map((property) => saveProperty({ ...property, status: 'available' }, { mode: 'edit', original: property })))
+        const failed = results.filter((result) => result.status === 'rejected').length
+        if (failed) toast.error(`${failed} properties failed to publish.`)
+        else toast.success(`${drafts.length} drafts published.`)
+        return failed ? { failed: drafts.slice(0, failed).map((property) => property.id) } : undefined
+      },
+    },
+    {
+      id: 'available',
+      label: 'Set Active',
+      icon: CheckCircle2,
+      run: async (ids: string[]) => {
+        const rows = ids.map((id) => properties.find((property) => property.id === id)).filter((property): property is Property => Boolean(property))
+        const results = await Promise.allSettled(rows.map((property) => saveProperty({ ...property, status: 'available' }, { mode: 'edit', original: property })))
+        const failed = results.filter((result) => result.status === 'rejected').length
+        if (failed) toast.error(`${failed} properties failed to update.`)
+        else toast.success(`${rows.length} properties updated.`)
+        return failed ? { failed: rows.slice(0, failed).map((property) => property.id) } : undefined
+      },
+    },
+  ]
+
+  const offerBulkActions: BulkAction<Offer>[] = [
+    {
+      id: 'review',
+      label: 'Mark as Reviewed',
+      icon: Eye,
+      run: (rows) => bulkUpdate(rows, (row) => updateOfferStatus(row.id, 'reviewed'), 'offers'),
+    },
+    {
+      id: 'accept',
+      label: 'Accept selected',
+      icon: CheckCircle2,
+      run: (rows) => bulkUpdate(rows, (row) => updateOfferStatus(row.id, 'accepted'), 'offers'),
+    },
+    {
+      id: 'decline',
+      label: 'Decline selected',
+      variant: 'destructive',
+      icon: XCircle,
+      run: (rows) => bulkUpdate(rows, (row) => updateOfferStatus(row.id, 'declined'), 'offers'),
+    },
+    {
+      id: 'delete',
+      label: 'Delete selected',
+      variant: 'destructive',
+      icon: Trash2,
+      run: (rows) => bulkDelete(rows, 'offers', deleteOffer),
+    },
+  ]
+
+  const showingBulkActions: BulkAction<ShowingRequest>[] = [
+    {
+      id: 'schedule',
+      label: 'Schedule selected',
+      icon: CalendarCheck,
+      run: (rows) => bulkUpdate(rows, (row) => updateShowingStatus(row.id, 'scheduled'), 'showings'),
+    },
+    {
+      id: 'complete',
+      label: 'Complete selected',
+      icon: CheckCircle2,
+      run: (rows) => bulkUpdate(rows, (row) => updateShowingStatus(row.id, 'completed'), 'showings'),
+    },
+    {
+      id: 'delete',
+      label: 'Delete selected',
+      variant: 'destructive',
+      icon: Trash2,
+      run: (rows) => bulkDelete(rows, 'showings', deleteShowing),
+    },
+  ]
 
   // Shared fullscreen loader while the store/auth session is resolving.
   if (!ready || !currentUser || currentUser.role !== 'admin') {
@@ -599,8 +740,9 @@ const messageOffer = (o: Offer) =>
                   properties={properties}
                   onEdit={setEditing}
                   onDelete={confirmDeleteProperty}
-                  onCreate={() => setCreating(true)}
-                />
+  onCreate={() => setCreating(true)}
+  bulkActions={propertyBulkActions}
+  />
               </div>
             </>
           )}
@@ -615,6 +757,7 @@ const messageOffer = (o: Offer) =>
                 onEdit={setEditing}
                 onDelete={confirmDeleteProperty}
                 onCreate={() => setCreating(true)}
+                bulkActions={propertyBulkActions}
               />
             </Panel>
           )}
@@ -654,6 +797,7 @@ const messageOffer = (o: Offer) =>
                     .join(' ')
                 }
                 searchPlaceholder="Search offers…"
+                bulkActions={offerBulkActions}
                 rowLabel={(o) => `Select offer from ${o.name}`}
                 emptyLabel="No offers in this view."
                 columns={[
@@ -774,6 +918,7 @@ const messageOffer = (o: Offer) =>
                     .join(' ')
                 }
                 searchPlaceholder="Search showings…"
+                bulkActions={showingBulkActions}
                 rowLabel={(s) => `Select showing from ${s.name}`}
                 emptyLabel="No showing requests in this view."
                 columns={[
@@ -861,8 +1006,10 @@ const messageOffer = (o: Offer) =>
                 inquiries={inquiries}
                 propertyMap={propertyMap}
                 onUpdateStatus={updateInquiryStatus}
-                onMarkRead={markInquiryRead}
-                onSendReply={sendAdminReply}
+                 onMarkRead={markInquiryRead}
+                 onSetRead={setInquiryRead}
+  onArchive={archiveInquiry}
+  onSendReply={sendAdminReply}
                 onDelete={deleteInquiry}
               />
             </Panel>

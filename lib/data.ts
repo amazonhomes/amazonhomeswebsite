@@ -320,6 +320,7 @@ export const seedInquiries: Inquiry[] = [
     status: 'new',
     replies: [],
     readAt: null,
+    archived: false,
     createdAt: pastDate(2),
   },
 ]

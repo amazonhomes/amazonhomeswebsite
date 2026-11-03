@@ -1,7 +1,8 @@
 'use client'
 
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import { ChevronLeft, ChevronRight, Search } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { ChevronLeft, ChevronRight, Loader2, Search, X } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Table,
@@ -23,6 +24,14 @@ export type Column<T> = {
 }
 
 export type TabDef = { id: string; label: string }
+
+export type BulkAction<T> = {
+  id: string
+  label: string
+  variant?: 'default' | 'destructive'
+  icon?: LucideIcon
+  run: (rows: T[]) => Promise<{ failed?: string[] } | void>
+}
 
 export const ROWS_PER_PAGE = 8
 
@@ -178,6 +187,7 @@ export function DataTable<T extends { id: string }>({
   emptyLabel = 'Nothing to show here yet.',
   noResultsLabel = 'No results match your search.',
   onRowClick,
+  bulkActions = [],
 }: {
   rows: T[]
   columns: Column<T>[]
@@ -200,8 +210,11 @@ export function DataTable<T extends { id: string }>({
   noResultsLabel?: string
   /** Makes rows clickable (and keyboard-activatable), e.g. to open a details dialog. */
   onRowClick?: (row: T) => void
+  bulkActions?: BulkAction<T>[]
 }) {
   const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [runningAction, setRunningAction] = useState<string | null>(null)
+  const selectAllRef = useRef<HTMLInputElement>(null)
   const [page, setPage] = useState(0)
   const [query, setQuery] = useState('')
 
@@ -223,7 +236,15 @@ export function DataTable<T extends { id: string }>({
   // Reset to the first page whenever the active filter or search changes.
   useEffect(() => {
     setPage(0)
+    setSelected(new Set())
   }, [activeTab, query])
+  useEffect(() => {
+    setSelected((previous) => {
+      const available = new Set(rows.map((row) => row.id))
+      const next = new Set([...previous].filter((id) => available.has(id)))
+      return next.size === previous.size ? previous : next
+    })
+  }, [rows])
 
   const toggle = (id: string) =>
     setSelected((prev) => {
@@ -233,6 +254,11 @@ export function DataTable<T extends { id: string }>({
     })
 
   const allOnPageSelected = pageRows.length > 0 && pageRows.every((r) => selected.has(r.id))
+  const someOnPageSelected = pageRows.some((r) => selected.has(r.id)) && !allOnPageSelected
+
+  useEffect(() => {
+    if (selectAllRef.current) selectAllRef.current.indeterminate = someOnPageSelected
+  }, [someOnPageSelected])
   const toggleAllOnPage = () =>
     setSelected((prev) => {
       const next = new Set(prev)
@@ -242,6 +268,17 @@ export function DataTable<T extends { id: string }>({
     })
 
   const colSpan = columns.length + (action ? 2 : 1)
+   const selectedRows = rows.filter((row) => selected.has(row.id))
+
+  const runBulkAction = async (bulkAction: BulkAction<T>) => {
+    setRunningAction(bulkAction.id)
+    try {
+      const result = await bulkAction.run(selectedRows)
+      if (!result?.failed?.length) setSelected(new Set())
+    } finally {
+      setRunningAction(null)
+    }
+  }
 
   return (
     <section className="flex flex-col gap-4">
@@ -270,6 +307,29 @@ export function DataTable<T extends { id: string }>({
           )}
         </div>
       )}
+      {selectedRows.length > 0 && bulkActions.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 p-3">
+          <span className="mr-2 text-sm font-medium text-foreground">
+            {selectedRows.length} selected
+          </span>
+          {bulkActions.map((bulkAction) => (
+            <Button
+              key={bulkAction.id}
+              size="sm"
+              variant={bulkAction.variant === 'destructive' ? 'destructive' : 'outline'}
+              disabled={runningAction !== null}
+              onClick={() => void runBulkAction(bulkAction)}
+            >
+               {runningAction === bulkAction.id ? <Loader2 className="size-4 animate-spin" /> : bulkAction.icon ? <bulkAction.icon className="size-4" /> : null}
+              {bulkAction.label}
+            </Button>
+          ))}
+          <Button variant="ghost" size="sm" disabled={runningAction !== null} onClick={() => setSelected(new Set())}>
+            <X className="size-4" />
+            Clear selection
+          </Button>
+        </div>
+      )}
 
       <div className="overflow-hidden rounded-xl border border-border bg-card">
         <Table>
@@ -277,6 +337,7 @@ export function DataTable<T extends { id: string }>({
             <TableRow className="bg-muted/50 hover:bg-muted/50">
               <TableHead className="w-10">
                 <input
+                ref={selectAllRef}
                   type="checkbox"
                   aria-label="Select all on page"
                   checked={allOnPageSelected}

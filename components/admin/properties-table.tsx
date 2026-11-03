@@ -1,13 +1,8 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
-import {
-  MoreHorizontal,
-  Pencil,
-  Plus,
-  Search,
-  Trash2,
-} from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { MoreHorizontal, Pencil, Plus, Search, Trash2, Upload, X } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 
 import { NumberedPagination } from '@/components/admin/data-table'
 import { StatusBadge } from '@/components/status-badge'
@@ -40,6 +35,14 @@ import type { Property, PropertyStatus } from '@/lib/types'
 
 const ROWS_PER_PAGE = 8
 
+type PropertyBulkAction = {
+  id: string
+  label: string
+  variant?: 'default' | 'destructive'
+  icon?: LucideIcon
+  run: (ids: string[]) => Promise<{ failed?: string[] } | void>
+}
+
 type Filter = 'all' | PropertyStatus
 
 const TABS: { id: Filter; label: string }[] = [
@@ -55,14 +58,18 @@ export function PropertiesTable({
   onEdit,
   onDelete,
   onCreate,
+  bulkActions = [],
 }: {
   properties: Property[]
   onEdit: (p: Property) => void
   onDelete: (id: string) => void
   onCreate: () => void
+  bulkActions?: PropertyBulkAction[]
 }) {
   const [filter, setFilter] = useState<Filter>('all')
   const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [runningAction, setRunningAction] = useState<string | null>(null)
+  const selectAllRef = useRef<HTMLInputElement>(null)
   const [page, setPage] = useState(0)
   const [query, setQuery] = useState('')
 
@@ -122,6 +129,16 @@ export function PropertiesTable({
 
   const allOnPageSelected =
     rows.length > 0 && rows.every((r) => selected.has(r.id))
+
+     const someOnPageSelected = rows.some((r) => selected.has(r.id)) && !allOnPageSelected
+
+  useEffect(() => {
+    if (selectAllRef.current) selectAllRef.current.indeterminate = someOnPageSelected
+  }, [someOnPageSelected])
+
+  useEffect(() => {
+    setSelected(new Set())
+  }, [filter, query])
 
   const toggleAllOnPage = () => {
     setSelected((prev) => {
@@ -211,6 +228,39 @@ export function PropertiesTable({
           </div>
         </div>
       </Tabs>
+       {selected.size > 0 && bulkActions.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 p-3">
+          <span className="mr-2 text-sm font-medium text-foreground">{selected.size} selected</span>
+          {bulkActions.map((bulkAction) => (
+            <Button
+              key={bulkAction.id}
+              size="sm"
+              variant={bulkAction.variant === 'destructive' ? 'destructive' : 'outline'}
+              disabled={runningAction !== null}
+              onClick={async () => {
+                setRunningAction(bulkAction.id)
+                try {
+                  const result = await bulkAction.run([...selected])
+                  if (!result?.failed?.length) setSelected(new Set())
+                } finally {
+                  setRunningAction(null)
+                }
+              }}
+            >
+               {runningAction === bulkAction.id ? (
+                'Updating…'
+              ) : bulkAction.icon ? (
+                <bulkAction.icon className="size-4" />
+              ) : null}
+              {bulkAction.label}
+            </Button>
+          ))}
+          <Button variant="ghost" size="sm" disabled={runningAction !== null} onClick={() => setSelected(new Set())}>
+            <X className="size-4" />
+            Clear selection
+          </Button>
+        </div>
+      )}
 
       {/* GLASS TABLE */}
       <div
@@ -247,6 +297,7 @@ export function PropertiesTable({
                 {/* Checkbox hidden on very small screens */}
                 <TableHead className="hidden w-10 sm:table-cell">
                   <input
+                  ref={selectAllRef}
                     type="checkbox"
                     aria-label="Select all on page"
                     checked={allOnPageSelected}
