@@ -39,7 +39,7 @@ import { LockedImage } from '@/components/locked-image'
 import { formatCurrency } from '@/lib/format'
 import { parseRehabLevel, REHAB_LEVELS } from '@/lib/rehab'
 import { useStore } from '@/lib/store'
-import { normalizeCoverPhoto } from '@/lib/property-images'
+import { normalizeCoverPhoto, type PhotoUploadStatus } from '@/lib/property-images'
 import {
   BUSINESS_TZ_LABEL,
   utcIsoToZonedInput,
@@ -223,6 +223,8 @@ export function PropertyEditor({
   // conversion to numbers happens only on submit.
   const [numText, setNumText] = useState<NumericText>(() => toNumericText(draft))
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const objectUrlsRef = useRef(new Set<string>())
+  const [photoStatuses, setPhotoStatuses] = useState<Record<string, { status: PhotoUploadStatus; error?: string }>>({})
 
   function numInputProps(key: NumericKey) {
     return {
@@ -245,43 +247,39 @@ export function PropertyEditor({
     setDraft((d) => ({ ...d, [key]: value }))
   }
 
-  async function handleFiles(files: FileList | null) {
+  function handleFiles(files: FileList | null) {
     if (!files || files.length === 0) return
-    const readAsDataUrl = (file: File) =>
-      new Promise<string>((resolve, reject) => {
-        const reader = new FileReader()
-        reader.onload = () => resolve(reader.result as string)
-        reader.onerror = reject
-        reader.readAsDataURL(file)
-      })
-
     const images = Array.from(files).filter((f) => f.type.startsWith('image/'))
     if (images.length === 0) {
       toast.error('Please choose image files only.')
       return
     }
-    try {
-      const urls = await Promise.all(images.map(readAsDataUrl))
-      setDraft((d) => ({
-        ...d,
-        photos: [
-          ...d.photos,
-          ...urls.map((url, i) => ({
-            url,
-            alt: images[i].name.replace(/\.[^.]+$/, ''),
-            protected: d.photos.length > 0,
-          })),
-        ],
-      }))
-      toast.success(`${urls.length} photo${urls.length > 1 ? 's' : ''} added`)
-    } catch {
-      toast.error('Could not read one of the files.')
-    }
+    const additions = images.map((file) => {
+      const url = URL.createObjectURL(file)
+      objectUrlsRef.current.add(url)
+      return { url, file, alt: file.name.replace(/\.[^.]+$/, ''), protected: true as const }
+    })
+    setDraft((d) => ({
+      ...d,
+      photos: [...d.photos, ...additions.map((photo) => ({ ...photo, protected: d.photos.length > 0 }))],
+    }))
+    setPhotoStatuses((current) => Object.fromEntries([
+      ...Object.entries(current),
+      ...additions.map((photo) => [photoId(photo), { status: 'queued' as PhotoUploadStatus }]),
+    ]))
+    toast.success(`${images.length} photo${images.length > 1 ? 's' : ''} added`)
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
   function removePhoto(index: number) {
-    setDraft((d) => ({ ...d, photos: d.photos.filter((_, i) => i !== index) }))
+    setDraft((d) => {
+      const photo = d.photos[index]
+      if (photo?.url.startsWith('blob:')) {
+        URL.revokeObjectURL(photo.url)
+        objectUrlsRef.current.delete(photo.url)
+      }
+      return { ...d, photos: d.photos.filter((_, i) => i !== index) }
+    })
   }
 
   function togglePhotoLock(index: number) {
@@ -322,7 +320,11 @@ export function PropertyEditor({
   )
   useEffect(() => {
     setPortalMounted(true)
-    return () => setPortalMounted(false)
+    return () => {
+      setPortalMounted(false)
+      for (const url of objectUrlsRef.current) URL.revokeObjectURL(url)
+      objectUrlsRef.current.clear()
+    }
   }, [])
 
   // A ref (not state) so a rapid double-click can't slip past before re-render.
@@ -367,10 +369,21 @@ export function PropertyEditor({
     setSaving(true)
     try {
       await saveProperty(
-        { ...draft, ...numbers, status: saveMode === 'draft' ? 'draft' : draft.status, highlights },
-        property ? { mode: 'edit', original: property } : { mode: 'create' },
-      )
-      toast.success(property ? 'Property updated' : 'Property added')
+        {
+          ...draft,
+          ...numbers,
+          status: saveMode === 'draft' ? 'draft' : draft.status === 'draft' ? 'available' : draft.status,
+          highlights,
+          },
+          property ? { mode: 'edit', original: property } : { mode: 'create' },
+          (photo, status, error) => setPhotoStatuses((current) => ({
+            ...current,
+            [photoId(photo)]: { status, error },
+          })),
+        )
+        for (const url of objectUrlsRef.current) URL.revokeObjectURL(url)
+        objectUrlsRef.current.clear()
+        toast.success(property ? 'Property updated' : 'Property added')
       onOpenChange(false)
     } catch (err) {
       // Never expose an original on failure — keep the dialog open and report.
@@ -417,9 +430,15 @@ export function PropertyEditor({
           <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between">
               <Label>Property photos</Label>
-              <span className="text-xs text-muted-foreground">
-                {draft.photos.length} added
-              </span>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <span>{draft.photos.length} added</span>
+                {saving && <span>{Object.values(photoStatuses).filter((item) => item.status === 'complete').length} of {draft.photos.length} photos completed</span>}
+                {Object.values(photoStatuses).some((item) => item.status === 'failed') && !saving && (
+                  <Button type="button" variant="outline" size="sm" onClick={() => formRef.current?.requestSubmit()}>
+                    Retry failed
+                  </Button>
+                )}
+              </div>
             </div>
             <input
               ref={fileInputRef}
@@ -454,14 +473,20 @@ export function PropertyEditor({
                 <SortableContext items={draft.photos.map(photoId)} strategy={rectSortingStrategy}>
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                     {draft.photos.map((photo, i) => (
+                      <div key={photoId(photo)} className="relative">
                       <SortablePhotoCard
-                        key={photoId(photo)}
                         photo={photo}
                         index={i}
                         propertyId={draft.id}
                         onToggleLock={() => togglePhotoLock(i)}
                         onRemove={() => removePhoto(i)}
                       />
+                      {photoStatuses[photoId(photo)] && photoStatuses[photoId(photo)].status !== 'complete' && (
+                        <span className="pointer-events-none absolute bottom-1.5 right-1.5 rounded bg-background/90 px-1.5 py-0.5 text-[10px] font-medium text-foreground shadow-sm">
+                          {photoStatuses[photoId(photo)].status === 'failed' ? 'Failed' : photoStatuses[photoId(photo)].status.replace('-', ' ')}
+                        </span>
+                      )}
+                      </div>
                     ))}
                   </div>
                 </SortableContext>
@@ -509,7 +534,7 @@ export function PropertyEditor({
                 checked={draft.financialsLocked}
                 onChange={(e) => set('financialsLocked', e.target.checked)}
               />
-              Hide Estimated Spread from logged-out visitors
+              Hide financials from logged-out visitors
             </label>
             <Field label="Est. rehab">
               <Select

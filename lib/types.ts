@@ -25,7 +25,9 @@ export interface PropertyPhoto {
    *  photos expose only this to logged-out visitors, so the locked gallery can
    *  render a real blurred preview without ever leaking the full image. */
   previewUrl?: string | null
-}
+  /** Browser-only pending source; never serialized to Supabase. */
+  file?: Blob
+  }
 
 export interface Property {
   id: string

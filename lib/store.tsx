@@ -12,7 +12,7 @@ import {
 } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { getClientAuthCallbackUrl } from '@/lib/site'
-import { preparePhotosForSave } from '@/lib/property-images'
+import { preparePhotosForSave, type PhotoUploadStatus } from '@/lib/property-images'
 import { parsePurchaseMethod, parseRehabLevel } from '@/lib/rehab'
 import type {
   AuditLog,
@@ -98,7 +98,11 @@ interface StoreContextValue {
     propertyId: string,
   ) => Promise<{ ok: boolean; needsAuth?: boolean; error?: string }>
   // admin actions
-  saveProperty: (property: Property, options: SavePropertyOptions) => Promise<void>
+  saveProperty: (
+    property: Property,
+    options: SavePropertyOptions,
+    onPhotoStatus?: (photo: Property['photos'][number], status: PhotoUploadStatus, error?: string) => void,
+  ) => Promise<void>
   deleteProperty: (propertyId: string) => Promise<void>
   updateOfferStatus: (id: string, status: Offer['status']) => Promise<void>
   updateShowingStatus: (id: string, status: ShowingRequest['status']) => Promise<void>
@@ -285,9 +289,9 @@ function redactPhotos(photos: Property['photos']) {
     if (index === 0) {
       // The first photo is always the public cover. Legacy locked covers use
       // their safe preview rather than exposing the private original path.
-      return ph.protected
-        ? { ...ph, url: ph.previewUrl ?? '', protected: false }
-        : { ...ph, protected: false }
+  return ph.protected
+    ? { url: ph.previewUrl ?? '', alt: ph.alt, protected: false, previewUrl: null }
+    : { url: ph.url, alt: ph.alt, protected: false, previewUrl: null }
     }
     return ph.protected
       ? { url: '', alt: ph.alt, protected: true, previewUrl: ph.previewUrl ?? null }
@@ -340,7 +344,12 @@ function propertyToPrivateRow(p: Property) {
     // upsert leaves existing values untouched and new rows take its default.
     rehab_level: p.rehabLevel,
     showing_info: p.showingInfo,
-    photos: p.photos ?? [],
+    photos: (p.photos ?? []).map((photo) => ({
+      url: photo.url,
+      alt: photo.alt,
+      protected: photo.protected,
+      previewUrl: photo.previewUrl ?? null,
+    })),
   }
 }
 
@@ -817,7 +826,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   /* ----------------------------- admin actions ---------------------------- */
 
   const saveProperty = useCallback<StoreContextValue['saveProperty']>(
-    async (draft, options) => {
+    async (draft, options, onPhotoStatus) => {
       // The caller states the mode explicitly; it is never inferred from the
       // (possibly still loading) client-side properties list.
       const isCreate = options.mode === 'create'
@@ -833,6 +842,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         property.id,
         property.photos,
         previousPhotos,
+        onPhotoStatus,
       )
       const withStored = { ...property, photos: prepared.photos }
 

@@ -22,6 +22,8 @@ export function LockedImage({
   propertyId,
   className,
   compact = false,
+  deferSignedUrl = false,
+  priority = false,
 }: {
   src: string
   alt: string
@@ -34,11 +36,14 @@ export function LockedImage({
   propertyId?: string
   className?: string
   compact?: boolean
+  /** Defer private signed-URL work for offscreen thumbnail instances. */
+  deferSignedUrl?: boolean
+  priority?: boolean
 }) {
   // A protected original may be stored as a private Storage object PATH rather
   // than a directly usable URL. For an unlocked (authenticated) viewer we swap
   // that path for a short-lived signed URL fetched from our server route.
-  const needsSignedUrl = !locked && isPrivateStoragePath(src) && Boolean(propertyId)
+  const needsSignedUrl = !deferSignedUrl && !locked && isPrivateStoragePath(src) && Boolean(propertyId)
   const { data: signedUrl } = useSWR(
     needsSignedUrl
       ? `/api/property-images/signed-url?propertyId=${encodeURIComponent(
@@ -68,6 +73,9 @@ export function LockedImage({
       <img
         src={displaySrc}
         alt={locked ? 'Protected property photo — sign in to view' : alt}
+        loading={priority ? 'eager' : 'lazy'}
+        decoding="async"
+        fetchPriority={priority ? 'high' : 'auto'}
         className={cn(
           'size-full object-cover transition-transform duration-500',
           locked && 'scale-105 blur-xl brightness-95',

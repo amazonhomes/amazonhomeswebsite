@@ -3,6 +3,29 @@ import type { PropertyPhoto } from '@/lib/types'
 
 export const PRIVATE_BUCKET = 'property-images-private'
 export const PREVIEW_BUCKET = 'property-previews'
+export const PHOTO_UPLOAD_CONCURRENCY = 3
+
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  worker: (item: T, index: number) => Promise<R>,
+  concurrency = PHOTO_UPLOAD_CONCURRENCY,
+): Promise<PromiseSettledResult<R>[]> {
+  const results: PromiseSettledResult<R>[] = new Array(items.length)
+  let nextIndex = 0
+  async function runWorker() {
+    while (true) {
+      const index = nextIndex++
+      if (index >= items.length) return
+      try {
+        results[index] = { status: 'fulfilled', value: await worker(items[index], index) }
+      } catch (reason) {
+        results[index] = { status: 'rejected', reason }
+      }
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(concurrency, items.length) }, runWorker))
+  return results
+}
 
 /** A protected original is stored as a bare Storage object PATH (no scheme,
  *  no leading slash), e.g. `properties/p-123/uuid.webp`. Anything with a
@@ -90,6 +113,8 @@ export function normalizeCoverPhoto(photos: PropertyPhoto[]): PropertyPhoto[] {
   )
 }
 
+export type PhotoUploadStatus = 'queued' | 'processing' | 'uploading-original' | 'uploading-preview' | 'complete' | 'failed'
+
 export interface PreparedPhotos {
   photos: PropertyPhoto[]
   /** Call after BOTH row writes succeed: deletes superseded originals. */
@@ -161,24 +186,38 @@ export async function preparePhotosForSave(
   propertyId: string,
   photos: PropertyPhoto[],
   previousPhotos: PropertyPhoto[] = [],
+  onPhotoStatus?: (photo: PropertyPhoto, status: PhotoUploadStatus, error?: string) => void,
 ): Promise<PreparedPhotos> {
   photos = normalizeCoverPhoto(photos)
   const previous = new Map(previousPhotos.filter((p) => p.url).map((p) => [p.url, p.protected]))
 
   // Photos are independent, so process them concurrently; allSettled lets us
   // clean up successful uploads if a sibling fails.
-  const settled = await Promise.allSettled(
-    photos.map(async (photo): Promise<PhotoResult> => {
-      if (photo.url.startsWith('data:')) {
-        return uploadNewPhoto(supabase, propertyId, photo)
+  const settled = await mapWithConcurrency(
+    photos,
+    async (photo): Promise<PhotoResult> => {
+      onPhotoStatus?.(photo, 'processing')
+      try {
+      if (photo.file || photo.url.startsWith('blob:') || photo.url.startsWith('data:')) {
+        const result = await uploadNewPhoto(supabase, propertyId, photo, (status) => onPhotoStatus?.(photo, status))
+        onPhotoStatus?.(photo, 'complete')
+        return result
       }
       if (needsMigration(photo, previous)) {
-        return photo.protected
-          ? migrateToPrivate(supabase, propertyId, photo)
-          : migrateToPublic(supabase, propertyId, photo)
+        const result = photo.protected
+          ? await migrateToPrivate(supabase, propertyId, photo)
+          : await migrateToPublic(supabase, propertyId, photo)
+        onPhotoStatus?.(photo, 'complete')
+        return result
       }
-      return { photo, created: [], obsolete: [] }
-    }),
+      const result = { photo, created: [], obsolete: [] }
+      onPhotoStatus?.(photo, 'complete')
+      return result
+      } catch (error) {
+        onPhotoStatus?.(photo, 'failed', error instanceof Error ? error.message : String(error))
+        throw error
+      }
+    },
   )
 
   const results: PhotoResult[] = []
@@ -275,32 +314,30 @@ async function uploadProtectedBlob(
   propertyId: string,
   blob: Blob,
   alt: string,
+  onStatus?: (status: PhotoUploadStatus) => void,
 ): Promise<PhotoResult> {
   const base = `properties/${propertyId}/${randomId()}`
   const originalPath = `${base}.${mimeToExt(blob.type)}`
   const previewPath = `${base}-preview.webp`
-  const [origRes, pvRes] = await Promise.allSettled([
-    supabase.storage
-      .from(PRIVATE_BUCKET)
-      .upload(originalPath, blob, { contentType: blob.type || undefined, upsert: false }),
-    generatePreviewBlob(blob).then((previewBlob) =>
-      supabase.storage
-        .from(PREVIEW_BUCKET)
-        .upload(previewPath, previewBlob, { contentType: 'image/webp', upsert: false }),
-    ),
-  ])
-  const origOk = origRes.status === 'fulfilled' && !origRes.value.error
-  const pvOk = pvRes.status === 'fulfilled' && !pvRes.value.error
-  if (!origOk || !pvOk) {
-    const partial: StorageRef[] = []
-    if (origOk) partial.push({ bucket: PRIVATE_BUCKET, path: originalPath })
-    if (pvOk) partial.push({ bucket: PREVIEW_BUCKET, path: previewPath })
-    await removeRefs(supabase, partial)
-    const reason = !origOk
-      ? origRes.status === 'rejected' ? origRes.reason : origRes.value.error
-      : pvRes.status === 'rejected' ? pvRes.reason : pvRes.value.error
-    const msg = reason instanceof Error ? reason.message : (reason as { message?: string })?.message
-    throw new Error(`${!origOk ? 'Original' : 'Preview'} upload failed: ${msg ?? 'unknown error'}`)
+  const created: StorageRef[] = []
+  onStatus?.('uploading-original')
+  const original = await supabase.storage
+    .from(PRIVATE_BUCKET)
+    .upload(originalPath, blob, { contentType: blob.type || undefined, upsert: false })
+  if (original.error) throw new Error(`Original upload failed: ${original.error.message}`)
+  created.push({ bucket: PRIVATE_BUCKET, path: originalPath })
+
+  try {
+    onStatus?.('uploading-preview')
+    const previewBlob = await generatePreviewBlob(blob)
+    const preview = await supabase.storage
+      .from(PREVIEW_BUCKET)
+      .upload(previewPath, previewBlob, { contentType: 'image/webp', upsert: false })
+    if (preview.error) throw new Error(`Preview upload failed: ${preview.error.message}`)
+    created.push({ bucket: PREVIEW_BUCKET, path: previewPath })
+  } catch (error) {
+    await removeRefs(supabase, created)
+    throw error instanceof Error ? error : new Error(String(error))
   }
 
   const { data: pub } = supabase.storage.from(PREVIEW_BUCKET).getPublicUrl(previewPath)
@@ -318,10 +355,11 @@ async function uploadNewPhoto(
   supabase: SupabaseClient,
   propertyId: string,
   photo: PropertyPhoto,
-): Promise<PhotoResult> {
-  const blob = await dataUrlToBlob(photo.url)
+  onStatus?: (status: PhotoUploadStatus) => void,
+  ): Promise<PhotoResult> {
+  const blob = photo.file ?? await dataUrlToBlob(photo.url)
   if (photo.protected) {
-    return uploadProtectedBlob(supabase, propertyId, blob, photo.alt)
+    return uploadProtectedBlob(supabase, propertyId, blob, photo.alt, onStatus)
   }
   const ext = mimeToExt(blob.type)
   const base = `properties/${propertyId}/${randomId()}`

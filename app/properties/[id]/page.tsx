@@ -238,6 +238,7 @@ export default function PropertyDetailPage() {
                   }
                   previewUrl={cover.previewUrl}
                   propertyId={property.id}
+                  priority
                   className="aspect-[16/10] w-full rounded-lg"
                 />
 
@@ -367,6 +368,7 @@ export default function PropertyDetailPage() {
                             propertyId={
                               property.id
                             }
+                            deferSignedUrl={photoIndex !== activePhoto}
                             className="aspect-square w-full"
                             compact
                           />
