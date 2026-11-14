@@ -162,7 +162,8 @@ function mapProperty(r: any): Property {
     arv: Number(r.arv),
     rehabLevel: publicRehabLevel(r.rehab_level ?? r.estimated_rehab),
     type: r.type,
-    status: r.status,
+    status: r.status === 'draft' ? 'available' : r.status,
+    publicationStatus: r.publication_status === 'draft' ? 'draft' : 'published',
     beds: Number(r.beds),
     baths: Number(r.baths),
     sqft: Number(r.sqft),
@@ -317,6 +318,7 @@ function propertyToRow(p: Property) {
     estimated_rehab: p.rehabLevel === 'light' ? 1 : p.rehabLevel === 'medium' ? 2 : p.rehabLevel === 'large' ? 3 : 0,
     type: p.type,
     status: p.status,
+    publication_status: p.publicationStatus,
     beds: p.beds,
     baths: p.baths,
     sqft: p.sqft,
@@ -431,7 +433,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       supabase
         .from('properties')
         .select('*')
-        .neq('status', 'draft')
+        .eq('publication_status', 'published')
         .order('created_at', { ascending: false }),
       supabase.from('testimonials').select('*').order('created_at', { ascending: false }),
       supabase.from('property_offer_counts').select('property_id, offer_count'),
@@ -486,7 +488,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         : supabase
             .from('properties')
             .select('*')
-            .neq('status', 'draft')
+            .eq('publication_status', 'published')
             .order('created_at', { ascending: false })
       const [pub, priv] = await Promise.all([
         propertyQuery,

@@ -14,8 +14,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const supabase = await createClient()
     const { data: property } = await supabase
       .from("properties")
-      .select("address, neighborhood, city, state, zip, type, description, status")
+      .select("address, neighborhood, city, state, zip, type, description, status, publication_status")
       .eq("id", id)
+      .eq("publication_status", "published")
+      .neq("status", "archived")
       .maybeSingle()
 
     if (!property) {

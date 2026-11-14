@@ -116,7 +116,7 @@ export default function HomePage() {
   const [featuredQuery, setFeaturedQuery] = useState("");
   const available = properties.filter((p) => p.status === "available").length;
 
-const listable = properties.filter((p) => p.status !== 'archived' && p.status !== 'draft')
+const listable = properties.filter((p) => p.publicationStatus === 'published' && p.status !== 'archived')
 
   // Top row: the 3 hottest deals — most submitted offers first (newest breaks ties).
   const hotDeals = [...listable]

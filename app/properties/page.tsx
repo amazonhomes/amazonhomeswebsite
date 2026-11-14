@@ -71,7 +71,7 @@ export default function PropertiesPage() {
   )
 
   const filtered = useMemo(() => {
-    let list = properties.filter((p) => p.status !== 'archived' && p.status !== 'draft')
+    let list = properties.filter((p) => p.publicationStatus === 'published' && p.status !== 'archived')
     if (query.trim()) {
       const q = query.toLowerCase()
       list = list.filter(

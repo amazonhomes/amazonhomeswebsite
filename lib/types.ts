@@ -1,4 +1,5 @@
-export type PropertyStatus = 'draft' | 'available' | 'under-contract' | 'sold' | 'archived'
+export type PropertyStatus = 'available' | 'draft' | 'under-contract' | 'sold' | 'archived'
+export type PropertyPublicationStatus = 'draft' | 'published'
 
 export type PropertyType =
   | 'Single Family'
@@ -41,7 +42,9 @@ export interface Property {
   /** Categorical rehab scope. Null for listings saved before the category existed. */
   rehabLevel: RehabLevel | null
   type: PropertyType
+  /** Listing condition is independent from whether the property is public. */
   status: PropertyStatus
+  publicationStatus: PropertyPublicationStatus
   beds: number
   baths: number
   sqft: number

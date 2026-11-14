@@ -90,14 +90,14 @@ export async function POST(req: Request) {
   // crafted request or a client clock skew cannot slip in a late offer.
   const { data: property, error: propError } = await supabase
     .from('properties')
-    .select('status, offer_deadline')
+    .select('status, offer_deadline, publication_status')
     .eq('id', propertyId)
     .maybeSingle()
 
   if (propError || !property) {
     return NextResponse.json({ ok: false, error: 'Property not found.' }, { status: 404 })
   }
-  if (property.status !== 'available' && property.status !== 'under-contract') {
+  if (property.publication_status !== 'published' || (property.status !== 'available' && property.status !== 'under-contract')) {
     return NextResponse.json(
       { ok: false, error: 'This property is no longer accepting offers.' },
       { status: 409 },

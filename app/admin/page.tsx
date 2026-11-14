@@ -433,8 +433,8 @@ function AdminDashboard() {
       label: 'Publish Drafts',
       icon: Upload,
       run: async (ids: string[]) => {
-        const drafts = ids.map((id) => properties.find((property) => property.id === id)).filter((property): property is Property => Boolean(property && property.status === 'draft'))
-        const results = await Promise.allSettled(drafts.map((property) => saveProperty({ ...property, status: 'available' }, { mode: 'edit', original: property })))
+        const drafts = ids.map((id) => properties.find((property) => property.id === id)).filter((property): property is Property => Boolean(property && property.publicationStatus === 'draft'))
+        const results = await Promise.allSettled(drafts.map((property) => saveProperty({ ...property, publicationStatus: 'published' }, { mode: 'edit', original: property })))
         const failed = results.filter((result) => result.status === 'rejected').length
         if (failed) toast.error(`${failed} properties failed to publish.`)
         else toast.success(`${drafts.length} drafts published.`)
@@ -512,9 +512,7 @@ function AdminDashboard() {
     return <Loader fullscreen label="Loading" />
   }
 
-  const activeListings = properties.filter(
-    (p) => p.status === 'available',
-  )
+  const activeListings = properties.filter((p) => p.publicationStatus === 'published' && p.status === 'available')
 
   const investors = users.filter(
     (u) => u.role === 'investor',

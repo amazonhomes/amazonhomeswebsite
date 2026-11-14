@@ -43,7 +43,7 @@ type PropertyBulkAction = {
   run: (ids: string[]) => Promise<{ failed?: string[] } | void>
 }
 
-type Filter = 'all' | PropertyStatus
+type Filter = 'all' | 'draft' | PropertyStatus
 
 const TABS: { id: Filter; label: string }[] = [
   { id: 'all', label: 'All listings' },
@@ -74,10 +74,11 @@ export function PropertiesTable({
   const [query, setQuery] = useState('')
 
   const filtered = useMemo(() => {
-    let base =
-      filter === 'all'
-        ? properties
-        : properties.filter((p) => p.status === filter)
+     let base = filter === 'all'
+      ? properties
+      : filter === 'draft'
+        ? properties.filter((p) => p.publicationStatus === 'draft')
+        : properties.filter((p) => p.publicationStatus === 'published' && p.status === filter)
 
     if (query.trim()) {
       const q = query.trim().toLowerCase()
@@ -111,7 +112,9 @@ export function PropertiesTable({
   const countFor = (id: Filter) =>
     id === 'all'
       ? properties.length
-      : properties.filter((p) => p.status === id).length
+      : id === 'draft'
+        ? properties.filter((p) => p.publicationStatus === 'draft').length
+        : properties.filter((p) => p.publicationStatus === 'published' && p.status === id).length
 
   const toggle = (id: string) => {
     setSelected((prev) => {
@@ -428,7 +431,9 @@ export function PropertiesTable({
 
                     {/* Status */}
                     <TableCell className="whitespace-nowrap">
-                      <StatusBadge status={p.status} />
+                
+                      <StatusBadge status={p.status} publicationStatus={p.publicationStatus} />
+                    
                     </TableCell>
 
                     {/* Price */}

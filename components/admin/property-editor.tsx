@@ -58,7 +58,7 @@ const propertyTypes: PropertyType[] = [
   'Fixer Upper',
 ]
 
-const statuses: PropertyStatus[] = ['draft', 'available', 'under-contract', 'sold', 'archived']
+const statuses: PropertyStatus[] = ['available', 'under-contract', 'sold', 'archived']
 
 const numericKeys = ['price', 'arv', 'beds', 'baths', 'sqft', 'yearBuilt'] as const
 type NumericKey = (typeof numericKeys)[number]
@@ -183,6 +183,7 @@ function emptyDraft(): Property {
     rehabLevel: null,
     type: 'Single Family',
     status: 'available',
+    publicationStatus: 'published',
     beds: 3,
     baths: 1,
     sqft: 1200,
@@ -311,6 +312,7 @@ export function PropertyEditor({
 
   const [saving, setSaving] = useState(false)
   const [saveMode, setSaveMode] = useState<'draft' | 'publish'>('publish')
+  const saveModeRef = useRef<'draft' | 'publish'>('publish')
   const formRef = useRef<HTMLFormElement>(null)
   const [activePhotoId, setActivePhotoId] = useState<string | null>(null)
   const [portalMounted, setPortalMounted] = useState(false)
@@ -333,23 +335,24 @@ export function PropertyEditor({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (submittingRef.current) return
+    const mode = saveModeRef.current
 
     const numbers = {} as Record<NumericKey, number>
     for (const key of numericKeys) {
       const parsed = parseNumeric(numText[key])
-      if (saveMode === 'publish' && parsed === null && requiredNumeric[key]) {
+      if (mode === 'publish' && parsed === null && requiredNumeric[key]) {
         toast.error(`${numericLabels[key]} is required.`)
         return
       }
       numbers[key] = parsed ?? 0
     }
 
-    if (saveMode === 'publish' && !draft.rehabLevel) {
+    if (mode === 'publish' && !draft.rehabLevel) {
       toast.error('Estimated rehab is required. Choose Light, Medium, or Large.')
       return
     }
 
-    if (saveMode === 'publish' && (!draft.address.trim() || !draft.city.trim() || !draft.zip.trim() || !draft.description.trim())) {
+    if (mode === 'publish' && (!draft.address.trim() || !draft.city.trim() || !draft.zip.trim() || !draft.description.trim())) {
       toast.error('Address, city, ZIP, and description are required to publish.')
       return
     }
@@ -372,7 +375,8 @@ export function PropertyEditor({
         {
           ...draft,
           ...numbers,
-          status: saveMode === 'draft' ? 'draft' : draft.status === 'draft' ? 'available' : draft.status,
+          status: draft.status,
+          publicationStatus: mode === 'draft' ? 'draft' : 'published',
           highlights,
           },
           property ? { mode: 'edit', original: property } : { mode: 'create' },
@@ -383,7 +387,13 @@ export function PropertyEditor({
         )
         for (const url of objectUrlsRef.current) URL.revokeObjectURL(url)
         objectUrlsRef.current.clear()
-        toast.success(property ? 'Property updated' : 'Property added')
+        toast.success(
+          mode === 'draft'
+            ? 'Draft saved'
+            : property
+              ? 'Property updated'
+              : 'Property published',
+        )
       onOpenChange(false)
     } catch (err) {
       // Never expose an original on failure — keep the dialog open and report.
@@ -394,6 +404,8 @@ export function PropertyEditor({
       )
     } finally {
       submittingRef.current = false
+      saveModeRef.current = 'publish'
+      setSaveMode('publish')
       setSaving(false)
     }
   }
@@ -680,19 +692,31 @@ export function PropertyEditor({
               Cancel
             </Button>
             <Button
-              type="button"
+              type="submit"
+              value="draft"
+              formNoValidate
               variant="secondary"
               onClick={() => {
+                saveModeRef.current = 'draft'
                 setSaveMode('draft')
-                formRef.current?.requestSubmit()
               }}
               disabled={saving}
             >
               Save as Draft
             </Button>
-            <Button type="submit" disabled={saving} aria-busy={saving} onClick={() => setSaveMode('publish')}>
-              {saving && <Loader2 className="size-4 animate-spin" aria-hidden />}
-              {saving ? 'Publishing...' : property?.status === 'draft' ? 'Publish Property' : property ? 'Save changes' : 'Publish Property'}
+            <Button
+            type="submit"
+            disabled={saving}
+            aria-busy={saving}
+            onClick={() => {
+              saveModeRef.current = 'publish'
+              setSaveMode('publish')
+            }}
+          >
+            {saving && <Loader2 className="size-4 animate-spin" aria-hidden />}
+            {saving
+              ? saveMode === 'draft' ? 'Saving draft...' : 'Publishing...'
+              : property?.publicationStatus === 'draft' ? 'Publish Property' : property ? 'Save changes' : 'Publish Property'}
             </Button>
           </div>
         </form>

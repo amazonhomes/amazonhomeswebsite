@@ -11,16 +11,18 @@ export const STATUS_BADGE_ICONS = {
 } as const
 
 export const STATUS_BADGE_CLASSES = {
-  newListing: 'bg-[#1E3A5F] text-white',
+  newListing: 'bg-[#0b1f3a] text-white',
   active: 'bg-green-600 text-white',
   pending: 'bg-yellow-400 text-yellow-950',
   sold: 'bg-red-600 text-white',
+  draft: 'bg-amber-100 text-amber-950 dark:bg-amber-500/20 dark:text-amber-300',
 } as const
 
 const config: Record<PropertyStatus, { label: string; className: string; icon?: LucideIcon }> = {
   draft: {
     label: 'Draft',
-    className: 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400',
+    className: STATUS_BADGE_CLASSES.active,
+    icon: CircleCheck,
   },
   available: {
     label: 'Active',
@@ -49,12 +51,17 @@ export function propertyStatusLabel(status: PropertyStatus) {
 
 export function StatusBadge({
   status,
+  publicationStatus,
   className,
 }: {
   status: PropertyStatus
+  publicationStatus?: 'draft' | 'published'
   className?: string
 }) {
-  const { label, className: statusClass, icon: Icon } = config[status]
+  const { label, className: statusClass, icon: Icon } =
+    publicationStatus === 'draft'
+      ? { label: 'Draft', className: STATUS_BADGE_CLASSES.draft, icon: Clock3 }
+      : config[status]
   return (
     <span
       className={cn(
