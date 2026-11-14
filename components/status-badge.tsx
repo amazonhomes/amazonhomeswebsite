@@ -1,4 +1,4 @@
-import { BadgeDollarSign, CircleCheck, Clock3, HousePlus } from 'lucide-react'
+import { BadgeDollarSign, CircleCheck, Clock3, HousePlus, Pen } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { PropertyStatus } from '@/lib/types'
@@ -8,6 +8,7 @@ export const STATUS_BADGE_ICONS = {
   active: CircleCheck,
   pending: Clock3,
   sold: BadgeDollarSign,
+  draft: Pen,
 } as const
 
 export const STATUS_BADGE_CLASSES = {
@@ -15,14 +16,14 @@ export const STATUS_BADGE_CLASSES = {
   active: 'bg-green-600 text-white',
   pending: 'bg-yellow-400 text-yellow-950',
   sold: 'bg-red-600 text-white',
-  draft: 'bg-amber-100 text-amber-950 dark:bg-amber-500/20 dark:text-amber-300',
+  draft: 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400',
 } as const
 
 const config: Record<PropertyStatus, { label: string; className: string; icon?: LucideIcon }> = {
   draft: {
     label: 'Draft',
     className: STATUS_BADGE_CLASSES.active,
-    icon: CircleCheck,
+    icon: Pen,
   },
   available: {
     label: 'Active',
@@ -60,7 +61,7 @@ export function StatusBadge({
 }) {
   const { label, className: statusClass, icon: Icon } =
     publicationStatus === 'draft'
-      ? { label: 'Draft', className: STATUS_BADGE_CLASSES.draft, icon: Clock3 }
+      ? { label: 'Draft', className: STATUS_BADGE_CLASSES.draft, icon: Pen }
       : config[status]
   return (
     <span

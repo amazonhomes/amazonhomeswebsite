@@ -333,11 +333,6 @@ export function PropertiesTable({
                   Baths
                 </TableHead>
 
-                {/* Neighborhood desktop+ */}
-                <TableHead className="hidden xl:table-cell">
-                  Neighborhood
-                </TableHead>
-
                 {/* Deadline wide desktop only */}
                 <TableHead className="hidden 2xl:table-cell">
                   Offer deadline
@@ -449,11 +444,6 @@ export function PropertiesTable({
                     {/* Baths */}
                     <TableCell className="hidden text-right tabular-nums text-muted-foreground lg:table-cell">
                       {p.baths}
-                    </TableCell>
-
-                    {/* Neighborhood */}
-                    <TableCell className="hidden whitespace-nowrap text-muted-foreground xl:table-cell">
-                      {p.neighborhood}
                     </TableCell>
 
                     {/* Offer deadline */}
