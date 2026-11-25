@@ -25,11 +25,11 @@ const spaceGrotesk = Space_Grotesk({
 export const metadata: Metadata = {
   metadataBase: new URL(getSiteUrl()),
   title: {
-    default: 'Amazon Homes — Metro Detroit Investment Properties',
+    default: 'Amazon Homes — Metro Investment Properties',
     template: '%s — Amazon Homes',
   },
   description:
-    'Off-market Detroit investment properties for serious buyers. Browse available deals, unlock protected photos and financials, submit offers, and request walkthroughs.',
+    'Off-market investment properties for serious buyers. Browse available deals, unlock protected photos and financials, submit offers, and request walkthroughs.',
   generator: 'v0.app',
   keywords: [
     'Detroit real estate',
@@ -41,15 +41,15 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     siteName: 'Amazon Homes',
-    title: 'Amazon Homes — Detroit Wholesale Investment Properties',
+    title: 'Amazon Homes — Wholesale Investment Properties',
     description:
-      'Off-market Detroit investment properties for serious buyers. Browse available deals, unlock protected photos and financials, submit offers, and request walkthroughs.',
+      'Off-market investment properties for serious buyers. Browse available deals, unlock protected photos and financials, submit offers, and request walkthroughs.',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Amazon Homes — Detroit Wholesale Investment Properties',
+    title: 'Amazon Homes — Wholesale Investment Properties',
     description:
-      'Off-market Detroit investment properties for serious buyers. Unlock protected photos and financials, submit offers, and request walkthroughs.',
+      'Off-market investment properties for serious buyers. Unlock protected photos and financials, submit offers, and request walkthroughs.',
   },
 }
 

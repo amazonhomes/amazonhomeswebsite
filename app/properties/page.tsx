@@ -142,7 +142,7 @@ export default function PropertiesPage() {
             Available properties
           </h1>
           <p className="mt-2 max-w-xl text-muted-foreground">
-            Detroit off-market deals with transparent numbers. Register to unlock
+            Off-market deals with transparent numbers. Register to unlock
             interior photos and full financials.
           </p>
         </div>

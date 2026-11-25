@@ -29,7 +29,7 @@ const steps = [
   {
     icon: Search,
     title: "Browse deals",
-    body: "Explore off-market Detroit properties with real numbers — price, ARV, and rehab estimates.",
+    body: "Explore off-market properties with real numbers — price, ARV, and rehab estimates.",
   },
   {
     icon: KeyRound,
@@ -74,7 +74,7 @@ const faqs = [
   },
   {
     q: "Do you work with out-of-state investors?",
-    a: "Absolutely. A large share of our buyers are remote. We provide detailed financials, photos, and coordinate local showings so you can invest in Detroit with confidence from anywhere.",
+    a: "Absolutely. A large share of our buyers are remote. We provide detailed financials, photos, and coordinate local showings so you can invest with confidence from anywhere.",
   },
 ];
 
@@ -162,13 +162,13 @@ const listable = properties.filter((p) => p.publicationStatus === 'published' &&
         <div className="relative mx-auto max-w-6xl px-4 py-20 md:py-28">
           <span className="inline-flex items-center gap-2 rounded-sm bg-primary px-3 py-1 dark:bg-black text-xs font-semibold uppercase tracking-widest text-white">
             <MapPin className="size-3.5" strokeWidth={2.5} />
-            Detroit, Michigan
+          Michigan
           </span>
           <h1 className="mt-5 max-w-3xl font-display text-4xl font-bold tracking-tight text-balance [text-shadow:0_2px_10px_rgba(0,0,0,0.75)] sm:text-5xl md:text-6xl dark:text-white">
             Off-market investment properties built for serious buyers.
           </h1>
           <p className="mt-5 max-w-xl text-lg text-primary-foreground/80 text-pretty dark:text-white">
-            Amazon Homes sources deeply discounted Detroit deals. Browse the
+            Amazon Homes sources deeply discounted deals. Browse the
             inventory, unlock protected photos and financials, and lock down
             your next flip or rental.
           </p>

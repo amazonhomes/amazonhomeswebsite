@@ -20,7 +20,7 @@ export function SiteFooter() {
             </span>
           </div>
           <p className="text-sm text-primary-foreground/70">
-            Off-market Detroit investment properties for serious cash buyers and
+            Off-market investment properties for serious cash buyers and
             long-term holders.
           </p>
         </div>
@@ -59,7 +59,7 @@ export function SiteFooter() {
           <h3 className="font-display text-sm font-semibold uppercase tracking-wide text-accent">
             Contact
           </h3>
-          <p className="text-sm text-primary-foreground/70">Detroit, Michigan</p>
+          <p className="text-sm text-primary-foreground/70">Michigan</p>
           <a href="tel:+13135550100" className="text-sm text-primary-foreground/70 hover:text-primary-foreground">
             (313) 880-4505
           </a>
