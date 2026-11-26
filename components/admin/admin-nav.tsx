@@ -257,7 +257,7 @@ export function AdminSidebar({
             Amazon Homes
           </p>
           <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
-            Metro Investment Deals
+            Investment Deals
           </p>
         </div>
       </div>

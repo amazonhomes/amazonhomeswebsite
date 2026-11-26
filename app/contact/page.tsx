@@ -33,7 +33,7 @@ export default function ContactPage() {
             value="deals@amazonhomes.com"
             href="mailto:deals@amazonhomes.com"
           />
-          <ContactCard icon={MapPin} label="Location" value="Detroit, Michigan" />
+          
           <div className="rounded-lg border border-border bg-card p-5">
             <h2 className="font-display text-lg font-semibold text-foreground">
               Office hours

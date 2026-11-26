@@ -59,7 +59,7 @@ export function SiteHeader() {
               Amazon Homes
             </span>
             <span className="text-[11px] font-medium uppercase tracking-widest text-muted-foreground">
-              Metro Investment Deals
+              Investment Deals
             </span>
           </span>
         </Link>
